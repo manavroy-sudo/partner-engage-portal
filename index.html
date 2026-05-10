@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Partner Engage — InsuranceDekho</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body class="login-page">
+
+  <div class="login-container">
+    <div class="login-logo">
+      <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+        <rect width="36" height="36" rx="8" fill="#e05a2b"/>
+        <path d="M18 6 L28 11 V19 C28 25 23 30 18 31 C13 30 8 25 8 19 V11 Z" fill="white" opacity="0.9"/>
+        <path d="M14 18 L17 21 L22 15" stroke="#e05a2b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div>
+        <div class="login-brand">InsuranceDekho</div>
+        <div class="login-sub">Partner Engage Portal</div>
+      </div>
+    </div>
+
+    <h1 class="login-title">Sign in to your account</h1>
+
+    <form id="loginForm" onsubmit="handleLogin(event)">
+      <div class="form-group">
+        <label for="gid">User ID (GID)</label>
+        <input type="text" id="gid" placeholder="e.g. IDK-ANILKUMAR" autocomplete="username" required />
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password" required />
+      </div>
+      <div id="loginError" class="error-msg" style="display:none"></div>
+      <button type="submit" class="btn-primary" id="loginBtn">
+        <span id="loginBtnText">Sign In</span>
+        <span id="loginSpinner" class="spinner" style="display:none"></span>
+      </button>
+    </form>
+
+    <p class="login-footer">Access is restricted to authorised personnel only.<br/>Contact your ZH if you need credentials.</p>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
