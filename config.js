@@ -1,5 +1,4 @@
 // ============================================================
-// STEP 1: After deploying your Apps Script as a Web App,
-// paste the URL below (replace the placeholder text).
+// PASTE YOUR APPS SCRIPT URL BELOW (keep the quotes)
 // ============================================================
-const API_URL = 'YOUR_APPS_SCRIPT_URL_HERE';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyHtNrSPFqRMO39tDLioGw4qZRlzEWlaNyhzlS6qhi_c_c_KNiZqVArekAH4Q7gO8WZCw/exec';

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Partner Engage — InsuranceDekho</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body class="login-page">
 
@@ -21,25 +21,85 @@
       </div>
     </div>
 
-    <h1 class="login-title">Sign in to your account</h1>
+    <!-- STEP 1: Enter GID -->
+    <div id="stepGid">
+      <h1 class="login-title">Sign in to your account</h1>
+      <div class="form-group">
+        <label for="gidInput">Your User ID (GID)</label>
+        <input type="text" id="gidInput" placeholder="e.g. IDK-ANILKUMAR" autocomplete="username"/>
+      </div>
+      <div id="gidError" class="error-msg" style="display:none"></div>
+      <button class="btn-primary" onclick="checkGid()">
+        <span id="gidBtnText">Continue</span>
+        <span id="gidSpinner" class="spinner" style="display:none"></span>
+      </button>
+    </div>
 
-    <form id="loginForm" onsubmit="handleLogin(event)">
+    <!-- STEP 2A: Enter existing password -->
+    <div id="stepPassword" style="display:none">
+      <button class="btn-back" onclick="goBack()">← Back</button>
+      <h1 class="login-title">Enter your password</h1>
+      <p class="step-user-label" id="passwordUserLabel"></p>
       <div class="form-group">
-        <label for="gid">User ID (GID)</label>
-        <input type="text" id="gid" placeholder="e.g. IDK-ANILKUMAR" autocomplete="username" required />
+        <label for="passwordInput">Password</label>
+        <input type="password" id="passwordInput" placeholder="Enter your password" autocomplete="current-password"/>
       </div>
-      <div class="form-group">
-        <label for="password">Password</label>
-        <input type="password" id="password" placeholder="Enter your password" autocomplete="current-password" required />
-      </div>
-      <div id="loginError" class="error-msg" style="display:none"></div>
-      <button type="submit" class="btn-primary" id="loginBtn">
+      <div id="passwordError" class="error-msg" style="display:none"></div>
+      <button class="btn-primary" onclick="doLogin()">
         <span id="loginBtnText">Sign In</span>
         <span id="loginSpinner" class="spinner" style="display:none"></span>
       </button>
-    </form>
+      <button class="btn-link" onclick="showForgotFlow()">Forgot password?</button>
+    </div>
 
-    <p class="login-footer">Access is restricted to authorised personnel only.<br/>Contact your ZH if you need credentials.</p>
+    <!-- STEP 2B: First time — set new password -->
+    <div id="stepSetPassword" style="display:none">
+      <button class="btn-back" onclick="goBack()">← Back</button>
+      <h1 class="login-title">Create your password</h1>
+      <p class="step-user-label" id="setPasswordUserLabel"></p>
+      <div class="info-box">This is your first login. Please create a password to secure your account.</div>
+      <div class="form-group">
+        <label for="newPassword1">New Password</label>
+        <input type="password" id="newPassword1" placeholder="At least 6 characters"/>
+      </div>
+      <div class="form-group">
+        <label for="newPassword2">Confirm Password</label>
+        <input type="password" id="newPassword2" placeholder="Repeat your password"/>
+      </div>
+      <div id="setPasswordError" class="error-msg" style="display:none"></div>
+      <div id="setPasswordSuccess" class="success-msg" style="display:none"></div>
+      <button class="btn-primary" onclick="doSetPassword(false)">
+        <span id="setPasswordBtnText">Set Password & Sign In</span>
+        <span id="setPasswordSpinner" class="spinner" style="display:none"></span>
+      </button>
+    </div>
+
+    <!-- STEP 2C: Forgot / Change password -->
+    <div id="stepChangePassword" style="display:none">
+      <button class="btn-back" onclick="goBack()">← Back</button>
+      <h1 class="login-title">Reset your password</h1>
+      <p class="step-user-label" id="changePasswordUserLabel"></p>
+      <div class="form-group">
+        <label for="oldPassword">Current Password</label>
+        <input type="password" id="oldPassword" placeholder="Your current password"/>
+      </div>
+      <div class="form-group">
+        <label for="changePassword1">New Password</label>
+        <input type="password" id="changePassword1" placeholder="At least 6 characters"/>
+      </div>
+      <div class="form-group">
+        <label for="changePassword2">Confirm New Password</label>
+        <input type="password" id="changePassword2" placeholder="Repeat new password"/>
+      </div>
+      <div id="changePasswordError" class="error-msg" style="display:none"></div>
+      <div id="changePasswordSuccess" class="success-msg" style="display:none"></div>
+      <button class="btn-primary" onclick="doSetPassword(true)">
+        <span id="changeBtnText">Update Password</span>
+        <span id="changeSpinner" class="spinner" style="display:none"></span>
+      </button>
+    </div>
+
+    <p class="login-footer">Access is restricted to authorised personnel only.<br/>Contact your ZH if you need help.</p>
   </div>
 
   <script src="config.js"></script>
