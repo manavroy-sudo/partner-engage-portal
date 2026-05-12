@@ -36,32 +36,26 @@
   </header>
 
   <!-- TAB NAV -->
-  <div class="tab-nav">
-    <button class="tab-btn active" id="tabPartners" onclick="switchTab('partners')">
-      My Partners
-    </button>
-    <button class="tab-btn" id="tabTeam" onclick="switchTab('team')" style="display:none">
-      Team Performance
-    </button>
+  <div class="tab-nav" id="tabNav">
+    <button class="tab-btn active" id="tabAll" onclick="switchTab('all')">All Partners</button>
+    <button class="tab-btn" id="tabMine" onclick="switchTab('mine')" style="display:none">My Partners</button>
+    <button class="tab-btn" id="tabTeam" onclick="switchTab('team')" style="display:none">Team Performance</button>
   </div>
 
   <main class="main-content">
 
-    <!-- ===== PARTNERS TAB ===== -->
-    <div id="panelPartners">
+    <!-- ===== ALL PARTNERS TAB ===== -->
+    <div id="panelAll">
       <div class="section-label" id="zoneLabel">Loading...</div>
-
-      <!-- Summary cards -->
       <div class="summary-cards" id="summaryCards">
         <div class="card-skel"></div><div class="card-skel"></div>
         <div class="card-skel"></div><div class="card-skel"></div>
         <div class="card-skel"></div><div class="card-skel"></div>
-        <div class="card-skel"></div>
+        <div class="card-skel"></div><div class="card-skel"></div>
       </div>
-
-      <!-- Filters -->
       <div class="filter-bar">
-        <input type="text" id="searchInput" placeholder="Search partner name / GID / city…" oninput="applyFilters()"/>
+        <input type="text" id="searchInput" placeholder="Search name / GID / city…" oninput="applyFilters()"/>
+        <select id="stateFilter" onchange="applyFilters()"><option value="">All states</option></select>
         <select id="statusFilter" onchange="applyFilters()">
           <option value="">All status</option>
           <option value="active">Active</option>
@@ -72,42 +66,73 @@
           <option value="growth">Growth</option>
           <option value="degrowth">De-growth</option>
         </select>
-        <select id="ownerRoleFilter" onchange="applyFilters()" style="display:none">
-          <option value="">All owners</option>
+        <select id="ownerFilter" onchange="applyFilters()" style="display:none"><option value="">All owners</option></select>
+        <select id="connectFilter" onchange="applyFilters()">
+          <option value="">All connect status</option>
+          <option value="connected">Connected</option>
+          <option value="notconnected">Not connected</option>
         </select>
       </div>
-
-      <!-- Partner table -->
       <div class="table-wrap">
-        <table id="partnerTable">
+        <table>
           <thead>
             <tr>
-              <th style="width:20%">Partner</th>
-              <th style="width:10%">City/State</th>
-              <th style="width:10%">Owner</th>
-              <th style="width:10%">Potential</th>
-              <th style="width:10%">Current Month</th>
-              <th style="width:16%">Achievement %</th>
-              <th style="width:8%">Trend</th>
-              <th style="width:7%">Status</th>
-              <th style="width:9%"></th>
+              <th style="width:18%">Partner</th>
+              <th style="width:9%">City/State</th>
+              <th style="width:9%">Owner</th>
+              <th style="width:8%">Potential</th>
+              <th style="width:7%">Target (May)</th>
+              <th style="width:7%">MTD</th>
+              <th style="width:7%">LMTD</th>
+              <th style="width:5%">MoM%</th>
+              <th style="width:14%">Target vs Ach.</th>
+              <th style="width:6%">Trend</th>
+              <th style="width:6%">Status</th>
+              <th style="width:5%">Connect</th>
+              <th style="width:5%"></th>
             </tr>
           </thead>
           <tbody id="partnerBody">
-            <tr><td colspan="9" class="loading-row">Loading partners...</td></tr>
+            <tr><td colspan="13" class="loading-row">Loading partners...</td></tr>
           </tbody>
         </table>
         <div class="table-footer" id="tableFooter"></div>
       </div>
     </div>
 
+    <!-- ===== MY PARTNERS TAB ===== -->
+    <div id="panelMine" style="display:none">
+      <div class="section-label">My Assigned Partners</div>
+      <div class="summary-cards" id="mySummaryCards"></div>
+      <div class="table-wrap" style="margin-top:14px">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:20%">Partner</th>
+              <th style="width:10%">City/State</th>
+              <th style="width:9%">Potential</th>
+              <th style="width:8%">Target (May)</th>
+              <th style="width:8%">MTD</th>
+              <th style="width:8%">LMTD</th>
+              <th style="width:6%">MoM%</th>
+              <th style="width:14%">Target vs Ach.</th>
+              <th style="width:7%">Trend</th>
+              <th style="width:7%">Status</th>
+              <th style="width:5%"></th>
+            </tr>
+          </thead>
+          <tbody id="myPartnerBody"><tr><td colspan="11" class="loading-row">Loading...</td></tr></tbody>
+        </table>
+        <div class="table-footer" id="myTableFooter"></div>
+      </div>
+    </div>
+
     <!-- ===== TEAM TAB ===== -->
     <div id="panelTeam" style="display:none">
-      <div class="section-label" id="teamLabel">Team Performance Overview</div>
+      <div class="section-label" id="teamLabel">Team Performance</div>
       <div class="team-grid" id="teamGrid">
-        <div class="card-skel" style="height:120px"></div>
-        <div class="card-skel" style="height:120px"></div>
-        <div class="card-skel" style="height:120px"></div>
+        <div class="card-skel" style="height:160px"></div>
+        <div class="card-skel" style="height:160px"></div>
       </div>
     </div>
 
@@ -123,33 +148,58 @@
         </div>
         <button class="modal-close" onclick="closeModalDirect()">✕</button>
       </div>
-
-      <!-- KPI cards -->
       <div class="modal-kpi-grid" id="mKpis"></div>
-
-      <!-- Potential box -->
       <div class="potential-box" id="mPotentialBox"></div>
-
-      <!-- Trend chart -->
-      <div class="modal-section-title">14-Month Performance Trend</div>
-      <div class="chart-wrap">
-        <canvas id="trendChart"></canvas>
-      </div>
-
-      <!-- History table -->
+      <div class="modal-section-title">14-Month Trend</div>
+      <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
       <div class="modal-section-title" style="margin-top:16px">Month-by-Month History</div>
       <div class="table-wrap" style="margin-bottom:16px">
         <table class="mini-table">
-          <thead>
-            <tr><th>Month</th><th>Premium (₹)</th><th>MoM Change</th></tr>
-          </thead>
+          <thead><tr><th>Month</th><th>Premium (₹)</th><th>MoM Change</th></tr></thead>
           <tbody id="mHistoryBody"></tbody>
         </table>
       </div>
-
-      <!-- Engagement -->
-      <div class="modal-section-title">Engagement — Current Month</div>
+      <div class="modal-section-title">Engagement & Connect Status</div>
       <div class="modal-engage-grid" id="mEngageGrid"></div>
+      <div class="modal-section-title" style="margin-top:16px">Remark</div>
+      <div class="remark-wrap" id="mRemarkWrap">
+        <textarea id="mRemark" rows="3" placeholder="Add remark for this partner…"></textarea>
+        <button class="btn-save-remark" id="saveRemarkBtn" onclick="saveRemark()">Save Remark</button>
+        <span class="remark-saved" id="remarkSaved" style="display:none">✓ Saved</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEAM MEMBER PARTNERS MODAL -->
+  <div class="modal-overlay" id="teamModalOverlay" onclick="closeTeamModal(event)">
+    <div class="modal-box" style="max-width:900px">
+      <div class="modal-header">
+        <div>
+          <div class="modal-partner-name" id="tmName">—</div>
+          <div class="modal-partner-meta" id="tmMeta">—</div>
+        </div>
+        <button class="modal-close" onclick="closeTeamModalDirect()">✕</button>
+      </div>
+      <div class="modal-kpi-grid" id="tmKpis" style="margin-bottom:14px"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:22%">Partner</th>
+              <th style="width:10%">City/State</th>
+              <th style="width:9%">MTD</th>
+              <th style="width:9%">LMTD</th>
+              <th style="width:6%">MoM%</th>
+              <th style="width:16%">Target vs Ach.</th>
+              <th style="width:8%">Trend</th>
+              <th style="width:8%">Status</th>
+              <th style="width:7%">Connect</th>
+              <th style="width:5%"></th>
+            </tr>
+          </thead>
+          <tbody id="tmPartnerBody"></tbody>
+        </table>
+      </div>
     </div>
   </div>
 

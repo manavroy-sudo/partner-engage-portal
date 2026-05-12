@@ -577,3 +577,54 @@ tbody tr:hover td { background: var(--gray-50); }
 .engage-card .engage-value { font-size: 14px; font-weight: 600; color: var(--gray-900); }
 .engage-card.remark { grid-column: 1 / -1; }
 .engage-card.remark .engage-value { font-size: 13px; font-weight: 400; color: var(--gray-700); line-height: 1.5; }
+
+/* =================== V3 ADDITIONS =================== */
+
+/* 8-col summary cards */
+.summary-cards { grid-template-columns: repeat(8, 1fr); }
+@media (max-width: 1200px) { .summary-cards { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 700px)  { .summary-cards { grid-template-columns: repeat(2, 1fr); } }
+
+/* Remark box */
+.remark-wrap { display:flex; flex-direction:column; gap:8px; }
+.remark-wrap textarea {
+  width:100%; padding:10px 12px; font-size:13px;
+  border:1px solid var(--gray-200); border-radius:var(--radius-md);
+  resize:vertical; font-family:inherit; color:var(--gray-900);
+  background:var(--white); outline:none;
+}
+.remark-wrap textarea:focus { border-color:var(--orange); box-shadow:0 0 0 3px rgba(224,90,43,0.12); }
+
+.btn-save-remark {
+  align-self:flex-start; height:34px; padding:0 16px;
+  background:var(--orange); color:var(--white); border:none;
+  border-radius:var(--radius-md); font-size:13px; font-weight:600;
+  cursor:pointer; transition:background 0.15s;
+}
+.btn-save-remark:hover { background:#c94e22; }
+.btn-save-remark:disabled { opacity:0.6; cursor:not-allowed; }
+.remark-saved { font-size:13px; color:var(--green); font-weight:600; }
+
+/* Target vs achievement sub-text in table */
+.progress-wrap + div { line-height:1; }
+
+/* Connected badge inline */
+.badge.connected   { background:var(--green-light); color:var(--green); }
+.badge.notconnected{ background:var(--gray-100);    color:var(--gray-500); }
+
+/* Team modal */
+#teamModalOverlay { display:none; }
+#teamModalOverlay.open { display:flex; }
+
+/* Team card 6-col stats */
+.team-stats { grid-template-columns: repeat(3, 1fr); gap:6px; }
+
+/* MoM text colors */
+.mom-up   { color:var(--green); font-weight:600; }
+.mom-down { color:var(--red);   font-weight:600; }
+
+/* Chart: show target line clearly */
+.chart-wrap { height:240px; }
+
+/* Highlighted current month row */
+tr[style*="orange-light"] td { border-bottom:1px solid #fed7aa; }
