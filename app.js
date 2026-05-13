@@ -1,17 +1,15 @@
 // ====================================================================
-// Partner Engage Portal — app.js (v4.1)
-// All logic data-driven from Apps Script. NO hardcoded values.
+// Partner Engage Portal — app.js (v4.2)
+// Changes: LMTD + Growth columns in table, improved modal graph
 // ====================================================================
 
 (function () {
   'use strict';
 
-  // ---------- session ----------
   const userJson = sessionStorage.getItem('peUser');
   if (!userJson) { location.href = 'index.html'; return; }
   const user = JSON.parse(userJson);
 
-  // ---------- state ----------
   let state = {
     user: user,
     partners: [],
@@ -29,7 +27,6 @@
   const MONTHS = ["Apr'25","May'25","Jun'25","Jul'25","Aug'25","Sep'25",
                   "Oct'25","Nov'25","Dec'25","Jan'26","Feb'26","Mar'26","Apr'26"];
 
-  // ---------- helpers ----------
   const $ = (id) => document.getElementById(id);
   const fmtINR = (n) => {
     if (!isFinite(n) || n === 0) return '₹0';
@@ -43,7 +40,6 @@
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
   })[ch]);
 
-  // ---------- header ----------
   $('userName').textContent = user.name || user.gid;
   $('userRole').textContent = user.role + (user.zone ? ' • ' + user.zone : '');
 
@@ -52,7 +48,6 @@
     location.href = 'index.html';
   });
 
-  // ---------- tabs ----------
   document.querySelectorAll('.tab').forEach(tab => {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -67,14 +62,12 @@
     });
   });
 
-  // AM users don't get Mine / AM Perf / Team Perf
   if (user.role === 'AM') {
     $('tabMine').style.display = 'none';
     $('tabAm').style.display = 'none';
     $('tabTeam').style.display = 'none';
   }
 
-  // ---------- status bar ----------
   function setStatus(msg, kind) {
     const bar = $('statusBar');
     bar.className = 'status-bar ' + (kind || '');
@@ -82,7 +75,6 @@
     bar.classList.toggle('hidden', !msg);
   }
 
-  // ---------- load data ----------
   function loadDashboard() {
     setStatus('Loading data from master sheet…', 'loading');
     const url = API_URL + '?action=getDashboard&gid=' + encodeURIComponent(user.gid);
@@ -118,7 +110,6 @@
       `<span class="role-chip">${safe(z)}</span>`).join(' ');
   }
 
-  // ---------- overall project tab ----------
   function renderOverall() {
     const op = state.overallProject;
     if (!op) return;
@@ -167,7 +158,6 @@
     }
   }
 
-  // ---------- mini KPI row ----------
   function renderKpiRow() {
     const s = state.summary;
     if (!s) return;
@@ -188,7 +178,6 @@
     `;
   }
 
-  // ---------- filter options ----------
   function populateFilterOptions() {
     const { states, cities, owners } = state.filterOptions;
     fill($('fState'),    states, 'All states');
@@ -206,7 +195,7 @@
     sel.value = cur;
   }
 
-  // ---------- All Partners tab ----------
+  // All Partners tab
   function getFiltered() {
     const q = $('fSearch').value.trim().toLowerCase();
     const st = $('fState').value;
@@ -253,7 +242,7 @@
     $('filterCount').textContent = list.length + ' of ' + state.partners.length + ' partners';
     const tbody = $('partnerTbody');
     if (list.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="14" class="empty">No partners match these filters.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="13" class="empty">No partners match these filters.</td></tr>`;
       return;
     }
     tbody.innerHTML = list.map(p => rowHtml(p)).join('');
@@ -263,7 +252,6 @@
   }
 
   function rowHtml(p) {
-    const ach = p.target > 0 ? Math.round(p.currentMonth / p.target * 100) : 0;
     const mom = p.prevMonth > 0 ? Math.round((p.currentMonth - p.prevMonth) / p.prevMonth * 100) : 0;
     const trend = p.isGrowth ? 'pos' : 'neg';
     return `
@@ -277,10 +265,6 @@
         <td><b>${fmtINR(p.currentMonth)}</b></td>
         <td>${fmtINR(p.prevMonth)}</td>
         <td class="${mom >= 0 ? 'pos' : 'neg'}">${mom >= 0 ? '+' : ''}${mom}%</td>
-        <td>
-          <div class="progress"><div class="progress-bar" style="width:${Math.min(ach, 100)}%"></div></div>
-          <div class="progress-label">${ach}%</div>
-        </td>
         <td><span class="trend-${trend}">${p.isGrowth ? '▲ Growth' : '▼ Degrowth'}</span></td>
         <td>${p.isActive ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Inactive</span>'}</td>
         <td>${p.connected ? '<span class="badge badge-blue">Connected</span>' : '<span class="badge badge-amber">Not Conn.</span>'}</td>
@@ -320,7 +304,7 @@
     a.click();
   }
 
-  // ---------- My Partners tab ----------
+  // My Partners tab
   function renderMine() {
     if (user.role === 'AM') return;
     const list = state.myPartners || [];
@@ -349,6 +333,7 @@
 
     $('mineTbody').innerHTML = filtered.map(p => {
       const mom = p.prevMonth > 0 ? Math.round((p.currentMonth - p.prevMonth) / p.prevMonth * 100) : 0;
+      const trend = p.isGrowth ? 'pos' : 'neg';
       return `
         <tr>
           <td><div class="partner-name">${safe(p.name)}</div><div class="partner-sub">${safe(p.gid)}</div></td>
@@ -359,6 +344,7 @@
           <td><b>${fmtINR(p.currentMonth)}</b></td>
           <td>${fmtINR(p.prevMonth)}</td>
           <td class="${mom >= 0 ? 'pos' : 'neg'}">${mom >= 0 ? '+' : ''}${mom}%</td>
+          <td><span class="trend-${trend}">${p.isGrowth ? '▲ Growth' : '▼ Degrowth'}</span></td>
           <td>${p.isActive ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Inactive</span>'}</td>
           <td>${p.connected ? '<span class="badge badge-blue">Connected</span>' : '<span class="badge badge-amber">Not Conn.</span>'}</td>
           <td><button class="btn-link openModal" data-gid="${safe(p.gid)}">View</button></td>
@@ -396,7 +382,7 @@
     };
   }
 
-  // ---------- AM Performance tab ----------
+  // AM Performance tab
   function renderAm() {
     if (user.role === 'AM') return;
     let list = state.amPerf.slice();
@@ -466,6 +452,7 @@
     const rows = am.partners.map(p => {
       const mom = p.prevMonth > 0 ? Math.round((p.currentMonth - p.prevMonth) / p.prevMonth * 100) : 0;
       const ach = p.target > 0 ? Math.round(p.currentMonth / p.target * 100) : 0;
+      const trend = p.isGrowth ? 'pos' : 'neg';
       return `<tr>
         <td><div class="partner-name">${safe(p.name)}</div><div class="partner-sub">${safe(p.gid)}</div></td>
         <td>${safe(p.city)}<div class="partner-sub">${safe(p.state)}</div></td>
@@ -475,7 +462,7 @@
         <td><b>${fmtINR(p.currentMonth)}</b></td>
         <td>${fmtINR(p.prevMonth)}</td>
         <td class="${mom >= 0 ? 'pos' : 'neg'}">${mom >= 0 ? '+' : ''}${mom}%</td>
-        <td>${ach}%</td>
+        <td><span class="trend-${trend}">${p.isGrowth ? '▲ Growth' : '▼ Degrowth'}</span></td>
         <td>${p.isActive ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Inactive</span>'}</td>
         <td>${p.connected ? '<span class="badge badge-blue">Conn.</span>' : '<span class="badge badge-amber">Not</span>'}</td>
         <td><button class="btn-link openModal" data-gid="${safe(p.gid)}">View</button></td>
@@ -501,7 +488,7 @@
         <table class="ptable">
           <thead><tr>
             <th>Partner</th><th>City / State</th><th>Max Pot.</th><th>Overall Pot.</th>
-            <th>Target</th><th>MTD</th><th>LMTD</th><th>MoM%</th><th>Ach.%</th>
+            <th>Target</th><th>MTD</th><th>LMTD</th><th>MoM%</th><th>Growth/Degrowth</th>
             <th>Status</th><th>Connect</th><th>Action</th>
           </tr></thead>
           <tbody>${rows}</tbody>
@@ -513,7 +500,7 @@
     });
   }
 
-  // ---------- Team Performance tab ----------
+  // Team Performance tab
   function renderTeam() {
     if (user.role === 'AM') return;
     let team = state.team || [];
@@ -565,6 +552,7 @@
     const op = member.overallProject;
     const rows = member.partners.map(p => {
       const mom = p.prevMonth > 0 ? Math.round((p.currentMonth - p.prevMonth) / p.prevMonth * 100) : 0;
+      const trend = p.isGrowth ? 'pos' : 'neg';
       return `<tr>
         <td>${safe(p.name)}<div class="partner-sub">${safe(p.gid)}</div></td>
         <td>${safe(p.city)}, ${safe(p.state)}</td>
@@ -574,6 +562,7 @@
         <td><b>${fmtINR(p.currentMonth)}</b></td>
         <td>${fmtINR(p.prevMonth)}</td>
         <td class="${mom >= 0 ? 'pos' : 'neg'}">${mom >= 0 ? '+' : ''}${mom}%</td>
+        <td><span class="trend-${trend}">${p.isGrowth ? '▲ Growth' : '▼ Degrowth'}</span></td>
         <td>${p.isActive ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Inactive</span>'}</td>
       </tr>`;
     }).join('');
@@ -593,7 +582,7 @@
         <table class="ptable">
           <thead><tr>
             <th>Partner</th><th>City, State</th><th>Max Pot.</th><th>Overall Pot.</th>
-            <th>Target</th><th>MTD</th><th>LMTD</th><th>MoM%</th><th>Status</th>
+            <th>Target</th><th>MTD</th><th>LMTD</th><th>MoM%</th><th>Growth/Degrowth</th><th>Status</th>
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>
@@ -601,11 +590,10 @@
     $('partnerModal').classList.remove('hidden');
   }
 
-  // ---------- Partner Modal ----------
+  // Partner Modal with improved graph
   function openModal(gid) {
     const p = state.partners.find(x => x.gid === gid);
     if (!p) return;
-    const ach = p.target > 0 ? Math.round(p.currentMonth / p.target * 100) : 0;
     const maxAch = p.maxPotential > 0 ? Math.round(p.currentMonth / p.maxPotential * 100) : 0;
 
     $('modalBody').innerHTML = `
@@ -616,12 +604,13 @@
         <div class="kpi-mini"><div><div class="kpi-mini-label">Overall Potential</div><div class="kpi-mini-val">${fmtINR(p.overallPotential)}</div></div></div>
         <div class="kpi-mini"><div><div class="kpi-mini-label">Target (May)</div><div class="kpi-mini-val">${fmtINR(p.target)}</div></div></div>
         <div class="kpi-mini"><div><div class="kpi-mini-label">MTD (May'26)</div><div class="kpi-mini-val"><b>${fmtINR(p.currentMonth)}</b></div></div></div>
+        <div class="kpi-mini"><div><div class="kpi-mini-label">LMTD (Apr'26)</div><div class="kpi-mini-val">${fmtINR(p.prevMonth)}</div></div></div>
       </div>
       <div class="potential-box">
-        <div><b>Max-Pot Achievement:</b> ${maxAch}% &nbsp; | &nbsp; <b>Target Achievement:</b> ${ach}%</div>
-        <div class="progress"><div class="progress-bar" style="width:${Math.min(ach, 100)}%"></div></div>
+        <div><b>Max-Pot Achievement:</b> ${maxAch}%</div>
       </div>
-      <canvas id="trendChart" height="200"></canvas>
+      <h3>14-Month Trend</h3>
+      <canvas id="trendChart" height="300" style="max-height:300px;"></canvas>
       <h3>Month-by-month history</h3>
       <div class="table-wrap">
         <table class="ptable compact">
@@ -643,22 +632,40 @@
     `;
     $('partnerModal').classList.remove('hidden');
 
+    // Improved graph: larger, color-coded by trend
     const ctx = $('trendChart');
+    const allData = [...p.monthlyData, p.currentMonth];
+    const borderColors = allData.map((val, idx) => {
+      if (idx === 0) return '#888';
+      return val >= allData[idx - 1] ? '#16a34a' : '#dc2626';
+    });
+    const bgColor = allData.map((val, idx) => {
+      if (idx === 0) return 'rgba(136, 136, 136, 0.1)';
+      return val >= allData[idx - 1] ? 'rgba(22, 163, 74, 0.1)' : 'rgba(220, 38, 38, 0.1)';
+    });
+
     new Chart(ctx, {
       type: 'line',
       data: {
         labels: [...MONTHS, "May'26"],
         datasets: [
-          { label: 'Monthly business', data: [...p.monthlyData, p.currentMonth],
-            borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.1)', fill: true, tension: 0.25 },
+          { label: 'Monthly business', data: allData,
+            borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.08)', fill: true,
+            tension: 0.3, pointBackgroundColor: borderColors, pointRadius: 5, pointBorderWidth: 2,
+            pointBorderColor: borderColors, segment: { borderColor: ctx => {
+              const data = ctx.p0DataIndex >= 0 && ctx.p0DataIndex < allData.length && ctx.p1DataIndex >= 0 && ctx.p1DataIndex < allData.length
+                ? (allData[ctx.p1DataIndex] >= allData[ctx.p0DataIndex] ? '#16a34a' : '#dc2626')
+                : '#2563eb';
+              return data;
+            }}},
           { label: 'May target', data: new Array(13).fill(null).concat([p.target]),
-            borderColor: '#dc2626', borderDash: [4, 4], pointRadius: 4 }
+            borderColor: '#9333ea', borderDash: [5, 5], pointRadius: 0, fill: false }
         ]
       },
       options: {
-        responsive: true,
+        responsive: true, maintainAspectRatio: false,
         scales: { y: { ticks: { callback: v => fmtINR(v) } } },
-        plugins: { legend: { position: 'bottom' } }
+        plugins: { legend: { position: 'bottom' }, title: { display: false } }
       }
     });
 
@@ -678,7 +685,6 @@
   $('modalClose').addEventListener('click', () => $('partnerModal').classList.add('hidden'));
   $('modalBackdrop').addEventListener('click', () => $('partnerModal').classList.add('hidden'));
 
-  // ---------- kick off ----------
   loadDashboard();
 
 })();

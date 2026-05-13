@@ -9,7 +9,6 @@
 </head>
 <body class="dashboard-body">
 
-  <!-- ===================== TOP BAR ===================== -->
   <header class="topbar">
     <div class="topbar-left">
       <div class="brand">
@@ -29,7 +28,6 @@
     </div>
   </header>
 
-  <!-- ===================== TABS ===================== -->
   <nav class="tabs">
     <button class="tab active" data-tab="overall">Overall Project</button>
     <button class="tab" data-tab="all">All Partners</button>
@@ -38,10 +36,8 @@
     <button class="tab" data-tab="team" id="tabTeam">Team Performance</button>
   </nav>
 
-  <!-- ===================== STATUS / LOADER ===================== -->
   <div id="statusBar" class="status-bar hidden"></div>
 
-  <!-- ===================== OVERALL PROJECT TAB ===================== -->
   <section class="tab-pane active" id="pane-overall">
     <h2 class="section-title">Overall Project Snapshot</h2>
     <p class="section-sub">Live rollup of everything within your zone. All numbers come straight from the master sheet. <span id="zoneChips"></span></p>
@@ -115,7 +111,6 @@
     </div>
   </section>
 
-  <!-- ===================== ALL PARTNERS TAB ===================== -->
   <section class="tab-pane" id="pane-all">
     <div class="kpi-row" id="kpiRow"></div>
 
@@ -169,7 +164,7 @@
             <th>Partner</th><th>City / State</th><th>Owner</th>
             <th>Max Potential</th><th>Overall Potential</th>
             <th>Target (May)</th><th>MTD (May'26)</th><th>LMTD (Apr'26)</th>
-            <th>MoM %</th><th>Target vs Ach.</th><th>Trend</th>
+            <th>MoM %</th><th>Growth/Degrowth</th>
             <th>Status</th><th>Connect</th><th>Action</th>
           </tr>
         </thead>
@@ -178,7 +173,6 @@
     </div>
   </section>
 
-  <!-- ===================== MY PARTNERS TAB ===================== -->
   <section class="tab-pane" id="pane-mine">
     <div class="kpi-row" id="kpiRowMine"></div>
     <div class="filter-bar">
@@ -201,7 +195,7 @@
             <th>Partner</th><th>City / State</th>
             <th>Max Potential</th><th>Overall Potential</th>
             <th>Target (May)</th><th>MTD</th><th>LMTD</th><th>MoM %</th>
-            <th>Status</th><th>Connect</th><th>Action</th>
+            <th>Growth/Degrowth</th><th>Status</th><th>Connect</th><th>Action</th>
           </tr>
         </thead>
         <tbody id="mineTbody"></tbody>
@@ -209,7 +203,6 @@
     </div>
   </section>
 
-  <!-- ===================== AM PERFORMANCE TAB ===================== -->
   <section class="tab-pane" id="pane-am">
     <h2 class="section-title">AM Performance</h2>
     <p class="section-sub">Every AM in your zone. Click any card to drill into all partners under that AM.</p>
@@ -232,7 +225,6 @@
     <div class="team-grid" id="amGrid"></div>
   </section>
 
-  <!-- ===================== TEAM PERFORMANCE TAB ===================== -->
   <section class="tab-pane" id="pane-team">
     <div class="filter-bar">
       <select id="fTeamRole">
@@ -246,7 +238,6 @@
     <div class="team-grid" id="teamGrid"></div>
   </section>
 
-  <!-- ===================== PARTNER MODAL ===================== -->
   <div class="modal hidden" id="partnerModal">
     <div class="modal-backdrop" id="modalBackdrop"></div>
     <div class="modal-window">
