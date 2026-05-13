@@ -53,7 +53,7 @@
       </div>
       <div class="kpi-card kpi-lg">
         <div class="kpi-label">Business Generated (MTD)</div>
-        <div class="kpi-value" id="op-business">—</div>
+        <div class="kpi-value pos" id="op-business">—</div>
         <div class="kpi-foot">
           <span class="pill" id="op-momPill">MoM: <b id="op-mom">—</b></span>
           <span class="pill pill-blue">Target Ach: <b id="op-ach">—</b></span>
@@ -93,10 +93,10 @@
     </div>
 
     <div class="card-grid grid-4">
-      <div class="kpi-card"><div class="kpi-label">Calls (total)</div><div class="kpi-value" id="op-calls">—</div></div>
-      <div class="kpi-card"><div class="kpi-label">Visits (total)</div><div class="kpi-value" id="op-visits">—</div></div>
-      <div class="kpi-card"><div class="kpi-label">Growth</div><div class="kpi-value" id="op-growth">—</div></div>
-      <div class="kpi-card"><div class="kpi-label">Degrowth</div><div class="kpi-value" id="op-degrowth">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Calls (total)</div><div class="kpi-value pos" id="op-calls">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Visits (total)</div><div class="kpi-value pos" id="op-visits">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Growth</div><div class="kpi-value pos" id="op-growth">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Degrowth</div><div class="kpi-value neg" id="op-degrowth">—</div></div>
     </div>
 
     <div class="card-grid grid-2">
@@ -165,7 +165,8 @@
             <th>Max Potential</th><th>Overall Potential</th>
             <th>Target (May)</th><th>MTD (May'26)</th><th>LMTD (Apr'26)</th>
             <th>MoM %</th><th>Growth/Degrowth</th>
-            <th>Status</th><th>Connect</th><th>Action</th>
+            <th>Status</th><th>Connect</th>
+            <th>Calls</th><th>Visits</th><th>Action</th>
           </tr>
         </thead>
         <tbody id="partnerTbody"></tbody>
@@ -195,7 +196,8 @@
             <th>Partner</th><th>City / State</th>
             <th>Max Potential</th><th>Overall Potential</th>
             <th>Target (May)</th><th>MTD</th><th>LMTD</th><th>MoM %</th>
-            <th>Growth/Degrowth</th><th>Status</th><th>Connect</th><th>Action</th>
+            <th>Growth/Degrowth</th><th>Status</th><th>Connect</th>
+            <th>Calls</th><th>Visits</th><th>Action</th>
           </tr>
         </thead>
         <tbody id="mineTbody"></tbody>

@@ -1,6 +1,6 @@
 // ====================================================================
-// Partner Engage Portal — app.js (v4.2)
-// Changes: LMTD + Growth columns in table, improved modal graph
+// Partner Engage Portal — app.js v5
+// Changes: Colored values in partner modal, Calls/Visits in tables
 // ====================================================================
 
 (function () {
@@ -170,11 +170,12 @@
       <div class="kpi-mini"><span class="kpi-mini-icon">📈</span><div><div class="kpi-mini-label">Max Potential</div><div class="kpi-mini-val">${fmtINR(s.totalMaxPotential)}</div></div></div>
       <div class="kpi-mini"><span class="kpi-mini-icon">🏦</span><div><div class="kpi-mini-label">Overall Potential</div><div class="kpi-mini-val">${fmtINR(s.totalOverallPotential)}</div></div></div>
       <div class="kpi-mini"><span class="kpi-mini-icon">🎯</span><div><div class="kpi-mini-label">Target (May)</div><div class="kpi-mini-val">${fmtINR(s.totalTarget)}</div></div></div>
-      <div class="kpi-mini"><span class="kpi-mini-icon">📅</span><div><div class="kpi-mini-label">MTD (May'26)</div><div class="kpi-mini-val">${fmtINR(s.currentMonthPremium)}</div><div class="kpi-mini-foot ${s.momPct >= 0 ? 'pos' : 'neg'}">${(s.momPct >= 0 ? '▲ ' : '▼ ') + Math.abs(s.momPct)}% MoM</div></div></div>
+      <div class="kpi-mini"><span class="kpi-mini-icon">📅</span><div><div class="kpi-mini-label">MTD (May'26)</div><div class="kpi-mini-val pos">${fmtINR(s.currentMonthPremium)}</div><div class="kpi-mini-foot ${s.momPct >= 0 ? 'pos' : 'neg'}">${(s.momPct >= 0 ? '▲ ' : '▼ ') + Math.abs(s.momPct)}% MoM</div></div></div>
       <div class="kpi-mini"><span class="kpi-mini-icon">📆</span><div><div class="kpi-mini-label">LMTD (Apr'26)</div><div class="kpi-mini-val">${fmtINR(s.prevMonthPremium)}</div></div></div>
       <div class="kpi-mini"><span class="kpi-mini-icon">🏆</span><div><div class="kpi-mini-label">Target Ach.</div><div class="kpi-mini-val ${s.achievementPct >= 80 ? 'pos' : s.achievementPct >= 40 ? '' : 'neg'}">${s.achievementPct}%</div></div></div>
       <div class="kpi-mini"><span class="kpi-mini-icon">✅</span><div><div class="kpi-mini-label">Active</div><div class="kpi-mini-val pos">${fmtInt(s.activeCount)}</div><div class="kpi-mini-foot neg">Inactive: ${fmtInt(s.inactiveCount)}</div></div></div>
-      <div class="kpi-mini"><span class="kpi-mini-icon">📞</span><div><div class="kpi-mini-label">Connected</div><div class="kpi-mini-val">${fmtInt(s.connectedCount)}</div><div class="kpi-mini-foot neg">Not Conn: ${fmtInt(s.notConnectedCount)}</div></div></div>
+      <div class="kpi-mini"><span class="kpi-mini-icon">📞</span><div><div class="kpi-mini-label">Connected</div><div class="kpi-mini-val pos">${fmtInt(s.connectedCount)}</div><div class="kpi-mini-foot neg">Not Conn: ${fmtInt(s.notConnectedCount)}</div></div></div>
+      <div class="kpi-mini"><span class="kpi-mini-icon">📱</span><div><div class="kpi-mini-label">Calls / Visits</div><div class="kpi-mini-val pos">${fmtInt(s.totalCalls)} / ${fmtInt(s.totalVisits)}</div></div></div>
     `;
   }
 
@@ -195,7 +196,7 @@
     sel.value = cur;
   }
 
-  // All Partners tab
+  // ---------- All Partners tab ----------
   function getFiltered() {
     const q = $('fSearch').value.trim().toLowerCase();
     const st = $('fState').value;
@@ -242,7 +243,7 @@
     $('filterCount').textContent = list.length + ' of ' + state.partners.length + ' partners';
     const tbody = $('partnerTbody');
     if (list.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="13" class="empty">No partners match these filters.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="15" class="empty">No partners match these filters.</td></tr>`;
       return;
     }
     tbody.innerHTML = list.map(p => rowHtml(p)).join('');
@@ -262,12 +263,14 @@
         <td>${fmtINR(p.maxPotential)}</td>
         <td>${fmtINR(p.overallPotential)}</td>
         <td>${fmtINR(p.target)}</td>
-        <td><b>${fmtINR(p.currentMonth)}</b></td>
+        <td class="pos"><b>${fmtINR(p.currentMonth)}</b></td>
         <td>${fmtINR(p.prevMonth)}</td>
         <td class="${mom >= 0 ? 'pos' : 'neg'}">${mom >= 0 ? '+' : ''}${mom}%</td>
         <td><span class="trend-${trend}">${p.isGrowth ? '▲ Growth' : '▼ Degrowth'}</span></td>
         <td>${p.isActive ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Inactive</span>'}</td>
         <td>${p.connected ? '<span class="badge badge-blue">Connected</span>' : '<span class="badge badge-amber">Not Conn.</span>'}</td>
+        <td class="pos"><b>${fmtInt(p.calls)}</b></td>
+        <td class="pos"><b>${fmtInt(p.visits)}</b></td>
         <td><button class="btn-link openModal" data-gid="${safe(p.gid)}">View</button></td>
       </tr>`;
   }
@@ -304,7 +307,7 @@
     a.click();
   }
 
-  // My Partners tab
+  // ---------- My Partners tab ----------
   function renderMine() {
     if (user.role === 'AM') return;
     const list = state.myPartners || [];
@@ -341,12 +344,14 @@
           <td>${fmtINR(p.maxPotential)}</td>
           <td>${fmtINR(p.overallPotential)}</td>
           <td>${fmtINR(p.target)}</td>
-          <td><b>${fmtINR(p.currentMonth)}</b></td>
+          <td class="pos"><b>${fmtINR(p.currentMonth)}</b></td>
           <td>${fmtINR(p.prevMonth)}</td>
           <td class="${mom >= 0 ? 'pos' : 'neg'}">${mom >= 0 ? '+' : ''}${mom}%</td>
           <td><span class="trend-${trend}">${p.isGrowth ? '▲ Growth' : '▼ Degrowth'}</span></td>
           <td>${p.isActive ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Inactive</span>'}</td>
           <td>${p.connected ? '<span class="badge badge-blue">Connected</span>' : '<span class="badge badge-amber">Not Conn.</span>'}</td>
+          <td class="pos"><b>${fmtInt(p.calls)}</b></td>
+          <td class="pos"><b>${fmtInt(p.visits)}</b></td>
           <td><button class="btn-link openModal" data-gid="${safe(p.gid)}">View</button></td>
         </tr>`;
     }).join('');
@@ -364,11 +369,12 @@
   });
 
   function computeSummary(list) {
-    let curr=0, prev=0, mp=0, op=0, tg=0, ac=0, gw=0, cn=0;
+    let curr=0, prev=0, mp=0, op=0, tg=0, ac=0, gw=0, cn=0, cl=0, vs=0;
     list.forEach(p => {
       curr += p.currentMonth; prev += p.prevMonth;
       mp += p.maxPotential; op += p.overallPotential; tg += p.target;
       if (p.isActive) ac++; if (p.isGrowth) gw++; if (p.connected) cn++;
+      cl += p.calls; vs += p.visits;
     });
     return {
       totalPartners: list.length,
@@ -377,12 +383,13 @@
       activeCount: ac, inactiveCount: list.length - ac,
       growthCount: gw, degrowthCount: list.length - gw,
       connectedCount: cn, notConnectedCount: list.length - cn,
+      totalCalls: cl, totalVisits: vs,
       achievementPct: tg > 0 ? Math.round(curr / tg * 100) : 0,
       momPct: prev > 0 ? Math.round((curr - prev) / prev * 100) : 0
     };
   }
 
-  // AM Performance tab
+  // ---------- AM Performance tab ----------
   function renderAm() {
     if (user.role === 'AM') return;
     let list = state.amPerf.slice();
@@ -422,16 +429,18 @@
             <button class="btn-primary openAmDrill" data-name="${safe(a.name)}">Details</button>
           </div>
           <div class="team-stats">
-            <div class="ts"><div class="ts-l">MTD</div><div class="ts-v"><b>${fmtINR(op.businessGenerated)}</b></div></div>
+            <div class="ts"><div class="ts-l">MTD</div><div class="ts-v pos"><b>${fmtINR(op.businessGenerated)}</b></div></div>
+            <div class="ts"><div class="ts-l">LMTD</div><div class="ts-v">${fmtINR(a.summary.prevMonthPremium)}</div></div>
+            <div class="ts"><div class="ts-l">MoM</div><div class="ts-v ${op.momPct >= 0 ? 'pos' : 'neg'}">${op.momPct >= 0 ? '+' : ''}${op.momPct}%</div></div>
             <div class="ts"><div class="ts-l">Target</div><div class="ts-v">${fmtINR(op.target)}</div></div>
             <div class="ts"><div class="ts-l">Ach.</div><div class="ts-v ${op.achievementPct >= 80 ? 'pos' : op.achievementPct >= 40 ? '' : 'neg'}">${op.achievementPct}%</div></div>
             <div class="ts"><div class="ts-l">Max Pot.</div><div class="ts-v">${fmtINR(op.maxPotential)}</div></div>
             <div class="ts"><div class="ts-l">Overall Pot.</div><div class="ts-v">${fmtINR(op.overallPotential)}</div></div>
             <div class="ts"><div class="ts-l">Active</div><div class="ts-v pos">${fmtInt(op.activePartners)}</div></div>
             <div class="ts"><div class="ts-l">Inactive</div><div class="ts-v neg">${fmtInt(op.inactivePartners)}</div></div>
-            <div class="ts"><div class="ts-l">Connected</div><div class="ts-v">${fmtInt(op.connectedPartners)}</div></div>
-            <div class="ts"><div class="ts-l">Calls / Visits</div><div class="ts-v">${fmtInt(op.calls)} / ${fmtInt(op.visits)}</div></div>
-            <div class="ts"><div class="ts-l">MoM</div><div class="ts-v ${op.momPct >= 0 ? 'pos' : 'neg'}">${op.momPct >= 0 ? '+' : ''}${op.momPct}%</div></div>
+            <div class="ts"><div class="ts-l">Connected</div><div class="ts-v pos">${fmtInt(op.connectedPartners)}</div></div>
+            <div class="ts"><div class="ts-l">Calls</div><div class="ts-v pos"><b>${fmtInt(op.calls)}</b></div></div>
+            <div class="ts"><div class="ts-l">Visits</div><div class="ts-v pos"><b>${fmtInt(op.visits)}</b></div></div>
           </div>
         </div>`;
     }).join('');
@@ -451,7 +460,6 @@
     const op = am.overallProject;
     const rows = am.partners.map(p => {
       const mom = p.prevMonth > 0 ? Math.round((p.currentMonth - p.prevMonth) / p.prevMonth * 100) : 0;
-      const ach = p.target > 0 ? Math.round(p.currentMonth / p.target * 100) : 0;
       const trend = p.isGrowth ? 'pos' : 'neg';
       return `<tr>
         <td><div class="partner-name">${safe(p.name)}</div><div class="partner-sub">${safe(p.gid)}</div></td>
@@ -459,12 +467,14 @@
         <td>${fmtINR(p.maxPotential)}</td>
         <td>${fmtINR(p.overallPotential)}</td>
         <td>${fmtINR(p.target)}</td>
-        <td><b>${fmtINR(p.currentMonth)}</b></td>
+        <td class="pos"><b>${fmtINR(p.currentMonth)}</b></td>
         <td>${fmtINR(p.prevMonth)}</td>
         <td class="${mom >= 0 ? 'pos' : 'neg'}">${mom >= 0 ? '+' : ''}${mom}%</td>
         <td><span class="trend-${trend}">${p.isGrowth ? '▲ Growth' : '▼ Degrowth'}</span></td>
         <td>${p.isActive ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Inactive</span>'}</td>
         <td>${p.connected ? '<span class="badge badge-blue">Conn.</span>' : '<span class="badge badge-amber">Not</span>'}</td>
+        <td class="pos"><b>${fmtInt(p.calls)}</b></td>
+        <td class="pos"><b>${fmtInt(p.visits)}</b></td>
         <td><button class="btn-link openModal" data-gid="${safe(p.gid)}">View</button></td>
       </tr>`;
     }).join('');
@@ -478,10 +488,10 @@
         <div class="kpi-mini"><div><div class="kpi-mini-label">Max Potential</div><div class="kpi-mini-val">${fmtINR(op.maxPotential)}</div></div></div>
         <div class="kpi-mini"><div><div class="kpi-mini-label">Overall Potential</div><div class="kpi-mini-val">${fmtINR(op.overallPotential)}</div></div></div>
         <div class="kpi-mini"><div><div class="kpi-mini-label">Target</div><div class="kpi-mini-val">${fmtINR(op.target)}</div></div></div>
-        <div class="kpi-mini"><div><div class="kpi-mini-label">MTD</div><div class="kpi-mini-val"><b>${fmtINR(op.businessGenerated)}</b></div></div></div>
+        <div class="kpi-mini"><div><div class="kpi-mini-label">MTD</div><div class="kpi-mini-val pos"><b>${fmtINR(op.businessGenerated)}</b></div></div></div>
         <div class="kpi-mini"><div><div class="kpi-mini-label">Achievement</div><div class="kpi-mini-val">${op.achievementPct}%</div></div></div>
-        <div class="kpi-mini"><div><div class="kpi-mini-label">Connected</div><div class="kpi-mini-val">${fmtInt(op.connectedPartners)}</div></div></div>
-        <div class="kpi-mini"><div><div class="kpi-mini-label">Calls / Visits</div><div class="kpi-mini-val">${fmtInt(op.calls)} / ${fmtInt(op.visits)}</div></div></div>
+        <div class="kpi-mini"><div><div class="kpi-mini-label">Connected</div><div class="kpi-mini-val pos">${fmtInt(op.connectedPartners)}</div></div></div>
+        <div class="kpi-mini"><div><div class="kpi-mini-label">Calls / Visits</div><div class="kpi-mini-val pos">${fmtInt(op.calls)} / ${fmtInt(op.visits)}</div></div></div>
       </div>
       <h3>Partners under ${safe(am.name)}</h3>
       <div class="table-wrap">
@@ -489,7 +499,7 @@
           <thead><tr>
             <th>Partner</th><th>City / State</th><th>Max Pot.</th><th>Overall Pot.</th>
             <th>Target</th><th>MTD</th><th>LMTD</th><th>MoM%</th><th>Growth/Degrowth</th>
-            <th>Status</th><th>Connect</th><th>Action</th>
+            <th>Status</th><th>Connect</th><th>Calls</th><th>Visits</th><th>Action</th>
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>
@@ -500,7 +510,7 @@
     });
   }
 
-  // Team Performance tab
+  // ---------- Team Performance tab ----------
   function renderTeam() {
     if (user.role === 'AM') return;
     let team = state.team || [];
@@ -526,14 +536,16 @@
             <button class="btn-link openTeamMember" data-key="${safe(t.role + '|' + t.name)}">Details</button>
           </div>
           <div class="team-stats">
-            <div class="ts"><div class="ts-l">MTD</div><div class="ts-v"><b>${fmtINR(op.businessGenerated)}</b></div></div>
+            <div class="ts"><div class="ts-l">MTD</div><div class="ts-v pos"><b>${fmtINR(op.businessGenerated)}</b></div></div>
+            <div class="ts"><div class="ts-l">LMTD</div><div class="ts-v">${fmtINR(t.summary.prevMonthPremium)}</div></div>
             <div class="ts"><div class="ts-l">Target</div><div class="ts-v">${fmtINR(op.target)}</div></div>
             <div class="ts"><div class="ts-l">Ach.</div><div class="ts-v ${op.achievementPct >= 80 ? 'pos' : op.achievementPct >= 40 ? '' : 'neg'}">${op.achievementPct}%</div></div>
             <div class="ts"><div class="ts-l">Max Pot.</div><div class="ts-v">${fmtINR(op.maxPotential)}</div></div>
-            <div class="ts"><div class="ts-l">Overall Pot.</div><div class="ts-v">${fmtINR(op.overallPotential)}</div></div>
             <div class="ts"><div class="ts-l">Active</div><div class="ts-v pos">${fmtInt(op.activePartners)}</div></div>
             <div class="ts"><div class="ts-l">Inactive</div><div class="ts-v neg">${fmtInt(op.inactivePartners)}</div></div>
-            <div class="ts"><div class="ts-l">Connected</div><div class="ts-v">${fmtInt(op.connectedPartners)}</div></div>
+            <div class="ts"><div class="ts-l">Connected</div><div class="ts-v pos">${fmtInt(op.connectedPartners)}</div></div>
+            <div class="ts"><div class="ts-l">Calls</div><div class="ts-v pos"><b>${fmtInt(op.calls)}</b></div></div>
+            <div class="ts"><div class="ts-l">Visits</div><div class="ts-v pos"><b>${fmtInt(op.visits)}</b></div></div>
           </div>
         </div>`;
     }).join('');
@@ -559,30 +571,33 @@
         <td>${fmtINR(p.maxPotential)}</td>
         <td>${fmtINR(p.overallPotential)}</td>
         <td>${fmtINR(p.target)}</td>
-        <td><b>${fmtINR(p.currentMonth)}</b></td>
+        <td class="pos"><b>${fmtINR(p.currentMonth)}</b></td>
         <td>${fmtINR(p.prevMonth)}</td>
         <td class="${mom >= 0 ? 'pos' : 'neg'}">${mom >= 0 ? '+' : ''}${mom}%</td>
         <td><span class="trend-${trend}">${p.isGrowth ? '▲ Growth' : '▼ Degrowth'}</span></td>
         <td>${p.isActive ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Inactive</span>'}</td>
+        <td class="pos"><b>${fmtInt(p.calls)}</b></td>
+        <td class="pos"><b>${fmtInt(p.visits)}</b></td>
       </tr>`;
     }).join('');
     $('modalBody').innerHTML = `
       <h2>${safe(member.name)} <span class="role-chip">${safe(member.role)}</span></h2>
       <div class="kpi-row">
         <div class="kpi-mini"><div><div class="kpi-mini-label">Partners</div><div class="kpi-mini-val">${fmtInt(op.totalPartners)}</div></div></div>
-        <div class="kpi-mini"><div><div class="kpi-mini-label">MTD</div><div class="kpi-mini-val">${fmtINR(op.businessGenerated)}</div></div></div>
+        <div class="kpi-mini"><div><div class="kpi-mini-label">MTD</div><div class="kpi-mini-val pos">${fmtINR(op.businessGenerated)}</div></div></div>
         <div class="kpi-mini"><div><div class="kpi-mini-label">Target</div><div class="kpi-mini-val">${fmtINR(op.target)}</div></div></div>
         <div class="kpi-mini"><div><div class="kpi-mini-label">Ach.</div><div class="kpi-mini-val">${op.achievementPct}%</div></div></div>
         <div class="kpi-mini"><div><div class="kpi-mini-label">Active</div><div class="kpi-mini-val pos">${fmtInt(op.activePartners)}</div></div></div>
         <div class="kpi-mini"><div><div class="kpi-mini-label">Inactive</div><div class="kpi-mini-val neg">${fmtInt(op.inactivePartners)}</div></div></div>
-        <div class="kpi-mini"><div><div class="kpi-mini-label">Connected</div><div class="kpi-mini-val">${fmtInt(op.connectedPartners)}</div></div></div>
-        <div class="kpi-mini"><div><div class="kpi-mini-label">Calls / Visits</div><div class="kpi-mini-val">${fmtInt(op.calls)} / ${fmtInt(op.visits)}</div></div></div>
+        <div class="kpi-mini"><div><div class="kpi-mini-label">Connected</div><div class="kpi-mini-val pos">${fmtInt(op.connectedPartners)}</div></div></div>
+        <div class="kpi-mini"><div><div class="kpi-mini-label">Calls / Visits</div><div class="kpi-mini-val pos">${fmtInt(op.calls)} / ${fmtInt(op.visits)}</div></div></div>
       </div>
       <div class="table-wrap">
         <table class="ptable">
           <thead><tr>
             <th>Partner</th><th>City, State</th><th>Max Pot.</th><th>Overall Pot.</th>
             <th>Target</th><th>MTD</th><th>LMTD</th><th>MoM%</th><th>Growth/Degrowth</th><th>Status</th>
+            <th>Calls</th><th>Visits</th>
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>
@@ -590,24 +605,40 @@
     $('partnerModal').classList.remove('hidden');
   }
 
-  // Partner Modal with improved graph
+  // ---------- Partner Modal — KEY CHANGES: colored values + Calls/Visits in headings ----------
   function openModal(gid) {
     const p = state.partners.find(x => x.gid === gid);
     if (!p) return;
     const maxAch = p.maxPotential > 0 ? Math.round(p.currentMonth / p.maxPotential * 100) : 0;
+    const mom = p.prevMonth > 0 ? Math.round((p.currentMonth - p.prevMonth) / p.prevMonth * 100) : 0;
+
+    // Determine colors:
+    // - MTD: green if > LMTD (growth), red if < (degrowth)
+    // - LMTD: neutral
+    // - Max Pot / Overall Pot: green if > 0
+    // - Target: amber/neutral
+    const mtdClass = p.currentMonth >= p.prevMonth ? 'pos' : 'neg';
+    const maxPotClass = p.maxPotential > 0 ? 'pos' : '';
+    const overallPotClass = p.overallPotential > 0 ? 'pos' : '';
+    const callsClass = p.calls > 0 ? 'pos' : '';
+    const visitsClass = p.visits > 0 ? 'pos' : '';
 
     $('modalBody').innerHTML = `
       <h2>${safe(p.name)} <span class="role-chip">${safe(p.gid)}</span></h2>
       <div class="modal-sub">${safe(p.city)}, ${safe(p.state)} • Owner: ${safe(p.ownerName)} (${safe(p.ownerRole)})</div>
       <div class="kpi-row">
-        <div class="kpi-mini"><div><div class="kpi-mini-label">Max Potential</div><div class="kpi-mini-val">${fmtINR(p.maxPotential)}</div></div></div>
-        <div class="kpi-mini"><div><div class="kpi-mini-label">Overall Potential</div><div class="kpi-mini-val">${fmtINR(p.overallPotential)}</div></div></div>
+        <div class="kpi-mini"><div><div class="kpi-mini-label">Max Potential</div><div class="kpi-mini-val ${maxPotClass}">${fmtINR(p.maxPotential)}</div></div></div>
+        <div class="kpi-mini"><div><div class="kpi-mini-label">Overall Potential</div><div class="kpi-mini-val ${overallPotClass}">${fmtINR(p.overallPotential)}</div></div></div>
         <div class="kpi-mini"><div><div class="kpi-mini-label">Target (May)</div><div class="kpi-mini-val">${fmtINR(p.target)}</div></div></div>
-        <div class="kpi-mini"><div><div class="kpi-mini-label">MTD (May'26)</div><div class="kpi-mini-val"><b>${fmtINR(p.currentMonth)}</b></div></div></div>
+        <div class="kpi-mini"><div><div class="kpi-mini-label">MTD (May'26)</div><div class="kpi-mini-val ${mtdClass}"><b>${fmtINR(p.currentMonth)}</b></div></div></div>
         <div class="kpi-mini"><div><div class="kpi-mini-label">LMTD (Apr'26)</div><div class="kpi-mini-val">${fmtINR(p.prevMonth)}</div></div></div>
+        <div class="kpi-mini"><div><div class="kpi-mini-label">MoM</div><div class="kpi-mini-val ${mom >= 0 ? 'pos' : 'neg'}">${mom >= 0 ? '+' : ''}${mom}%</div></div></div>
+        <div class="kpi-mini"><div><div class="kpi-mini-label">Calls</div><div class="kpi-mini-val ${callsClass}"><b>${fmtInt(p.calls)}</b></div></div></div>
+        <div class="kpi-mini"><div><div class="kpi-mini-label">Visits</div><div class="kpi-mini-val ${visitsClass}"><b>${fmtInt(p.visits)}</b></div></div></div>
       </div>
       <div class="potential-box">
-        <div><b>Max-Pot Achievement:</b> ${maxAch}%</div>
+        <div><b>Max-Pot Achievement:</b> <span class="${maxAch >= 80 ? 'pos' : maxAch >= 40 ? '' : 'neg'}">${maxAch}%</span> &nbsp; | &nbsp;
+        <b>Growth Status:</b> ${p.isGrowth ? '<span class="pos">▲ Growth</span>' : '<span class="neg">▼ Degrowth</span>'}</div>
       </div>
       <h3>14-Month Trend</h3>
       <canvas id="trendChart" height="300" style="max-height:300px;"></canvas>
@@ -615,13 +646,11 @@
       <div class="table-wrap">
         <table class="ptable compact">
           <thead><tr>${MONTHS.map(m => `<th>${m}</th>`).join('')}<th>May'26</th></tr></thead>
-          <tbody><tr>${p.monthlyData.map(v => `<td>${fmtINR(v)}</td>`).join('')}<td class="highlight"><b>${fmtINR(p.currentMonth)}</b></td></tr></tbody>
+          <tbody><tr>${p.monthlyData.map(v => `<td>${fmtINR(v)}</td>`).join('')}<td class="highlight pos"><b>${fmtINR(p.currentMonth)}</b></td></tr></tbody>
         </table>
       </div>
-      <h3>Connect status</h3>
+      <h3>Connect Status — Calls: <span class="pos">${fmtInt(p.calls)}</span> &nbsp; Visits: <span class="pos">${fmtInt(p.visits)}</span></h3>
       <div class="row-flex">
-        <div>Calls: <b>${fmtInt(p.calls)}</b></div>
-        <div>Visits: <b>${fmtInt(p.visits)}</b></div>
         <div>Status: ${p.isActive ? '<span class="badge badge-green">Active</span>' : '<span class="badge badge-red">Inactive</span>'}</div>
         <div>${p.connected ? '<span class="badge badge-blue">Connected</span>' : '<span class="badge badge-amber">Not Connected</span>'}</div>
       </div>
@@ -632,16 +661,11 @@
     `;
     $('partnerModal').classList.remove('hidden');
 
-    // Improved graph: larger, color-coded by trend
     const ctx = $('trendChart');
     const allData = [...p.monthlyData, p.currentMonth];
-    const borderColors = allData.map((val, idx) => {
+    const pointColors = allData.map((val, idx) => {
       if (idx === 0) return '#888';
       return val >= allData[idx - 1] ? '#16a34a' : '#dc2626';
-    });
-    const bgColor = allData.map((val, idx) => {
-      if (idx === 0) return 'rgba(136, 136, 136, 0.1)';
-      return val >= allData[idx - 1] ? 'rgba(22, 163, 74, 0.1)' : 'rgba(220, 38, 38, 0.1)';
     });
 
     new Chart(ctx, {
@@ -649,15 +673,13 @@
       data: {
         labels: [...MONTHS, "May'26"],
         datasets: [
-          { label: 'Monthly business', data: allData,
+          {
+            label: 'Monthly business', data: allData,
             borderColor: '#2563eb', backgroundColor: 'rgba(37,99,235,0.08)', fill: true,
-            tension: 0.3, pointBackgroundColor: borderColors, pointRadius: 5, pointBorderWidth: 2,
-            pointBorderColor: borderColors, segment: { borderColor: ctx => {
-              const data = ctx.p0DataIndex >= 0 && ctx.p0DataIndex < allData.length && ctx.p1DataIndex >= 0 && ctx.p1DataIndex < allData.length
-                ? (allData[ctx.p1DataIndex] >= allData[ctx.p0DataIndex] ? '#16a34a' : '#dc2626')
-                : '#2563eb';
-              return data;
-            }}},
+            tension: 0.3, pointBackgroundColor: pointColors, pointRadius: 5, pointBorderWidth: 2,
+            pointBorderColor: pointColors,
+            segment: { borderColor: ctx => allData[ctx.p1DataIndex] >= allData[ctx.p0DataIndex] ? '#16a34a' : '#dc2626' }
+          },
           { label: 'May target', data: new Array(13).fill(null).concat([p.target]),
             borderColor: '#9333ea', borderDash: [5, 5], pointRadius: 0, fill: false }
         ]
@@ -665,7 +687,7 @@
       options: {
         responsive: true, maintainAspectRatio: false,
         scales: { y: { ticks: { callback: v => fmtINR(v) } } },
-        plugins: { legend: { position: 'bottom' }, title: { display: false } }
+        plugins: { legend: { position: 'bottom' } }
       }
     });
 

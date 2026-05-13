@@ -150,3 +150,78 @@ textarea { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius:
 /* -------- AM Performance card distinction -------- */
 .am-card { border-left: 3px solid #2563eb; }
 .am-card .btn-primary { padding: 6px 12px; font-size: 12px; }
+
+/* -------- Master Dashboard v5 -------- */
+.master-mark {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #fff;
+}
+.zone-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+.zone-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  padding: 18px;
+  border-left: 4px solid #2563eb;
+}
+.zone-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.zone-name {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1f2937;
+}
+.zone-count {
+  background: #eff6ff;
+  color: #2563eb;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.zone-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.zone-card .btn-primary {
+  width: 100%;
+  padding: 10px;
+  font-weight: 600;
+}
+.role-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+.modal-window.large {
+  max-width: 1300px;
+  width: 95%;
+}
+
+/* Pos/neg colors enhanced */
+.pos { color: #16a34a !important; }
+.neg { color: #dc2626 !important; }
+.kpi-mini-val.pos b, .kpi-mini-val.pos { color: #16a34a !important; }
+.kpi-mini-val.neg b, .kpi-mini-val.neg { color: #dc2626 !important; }
+.kpi-value.pos { color: #16a34a !important; }
+.kpi-value.neg { color: #dc2626 !important; }
+.ts-v.pos { color: #16a34a !important; }
+.ts-v.neg { color: #dc2626 !important; }
+
+/* AM card distinction */
+.am-card { border-left: 3px solid #2563eb; }
+.am-card .btn-primary { padding: 6px 12px; font-size: 12px; }

@@ -12,109 +12,194 @@
   <header class="topbar">
     <div class="topbar-left">
       <div class="brand">
-        <span class="brand-mark">M</span>
+        <span class="brand-mark master-mark">★</span>
         <div>
           <div class="brand-name">Master Dashboard</div>
-          <div class="brand-sub">Central Team · InsuranceDekho</div>
+          <div class="brand-sub">Central Team • Pan-India View</div>
         </div>
       </div>
     </div>
     <div class="topbar-right">
       <div class="user-chip">
         <div class="user-chip-name" id="userName">—</div>
-        <div class="user-chip-role" id="userRole">MASTER</div>
+        <div class="user-chip-role">MASTER</div>
       </div>
       <button class="btn-ghost" id="btnLogout">Logout</button>
     </div>
   </header>
 
   <nav class="tabs">
-    <button class="tab active" data-tab="overview">Overview</button>
-    <button class="tab" data-tab="zone">Zone-wise</button>
-    <button class="tab" data-tab="head">Head Performance</button>
-    <button class="tab" data-tab="state">State-wise</button>
-    <button class="tab" data-tab="login">Login Activity</button>
+    <button class="tab active" data-tab="india">Pan-India Overview</button>
+    <button class="tab" data-tab="zones">Zone Performance</button>
+    <button class="tab" data-tab="roles">Role Performance</button>
+    <button class="tab" data-tab="states">State Performance</button>
+    <button class="tab" data-tab="logins">Login Activity</button>
   </nav>
 
   <div id="statusBar" class="status-bar hidden"></div>
 
-  <!-- OVERVIEW -->
-  <section class="tab-pane active" id="pane-overview">
-    <h2 class="section-title">Overall Project (All India)</h2>
-    <div class="card-grid grid-4">
-      <div class="kpi-card"><div class="kpi-label">Total Partners</div><div class="kpi-value" id="m-total">—</div></div>
-      <div class="kpi-card"><div class="kpi-label">MTD Business</div><div class="kpi-value" id="m-mtd">—</div></div>
-      <div class="kpi-card"><div class="kpi-label">Target (May)</div><div class="kpi-value" id="m-target">—</div></div>
-      <div class="kpi-card"><div class="kpi-label">Achievement</div><div class="kpi-value" id="m-ach">—</div></div>
+  <!-- ===================== PAN-INDIA OVERVIEW ===================== -->
+  <section class="tab-pane active" id="pane-india">
+    <h2 class="section-title">Pan-India Snapshot</h2>
+    <p class="section-sub">Every partner, every zone, every role — live from the master sheet.</p>
+
+    <div class="card-grid grid-3">
+      <div class="kpi-card kpi-lg">
+        <div class="kpi-label">Total Partners</div>
+        <div class="kpi-value" id="m-totalPartners">—</div>
+        <div class="kpi-foot">
+          <span class="pill pill-green">Active: <b id="m-active">—</b></span>
+          <span class="pill pill-red">Inactive: <b id="m-inactive">—</b></span>
+        </div>
+      </div>
+      <div class="kpi-card kpi-lg">
+        <div class="kpi-label">Business Generated (MTD)</div>
+        <div class="kpi-value pos" id="m-business">—</div>
+        <div class="kpi-foot">
+          <span class="pill" id="m-momPill">MoM: <b id="m-mom">—</b></span>
+          <span class="pill pill-blue">Target Ach: <b id="m-ach">—</b></span>
+        </div>
+      </div>
+      <div class="kpi-card kpi-lg">
+        <div class="kpi-label">Engagement</div>
+        <div class="kpi-value" id="m-connected">—</div>
+        <div class="kpi-foot">
+          <span class="pill pill-green">Connected: <b id="m-conn">—</b></span>
+          <span class="pill pill-amber">Not Conn.: <b id="m-notconn">—</b></span>
+        </div>
+      </div>
     </div>
+
     <div class="card-grid grid-4">
-      <div class="kpi-card"><div class="kpi-label">Max Potential</div><div class="kpi-value" id="m-maxpot">—</div></div>
-      <div class="kpi-card"><div class="kpi-label">Overall Potential</div><div class="kpi-value" id="m-overallpot">—</div></div>
-      <div class="kpi-card"><div class="kpi-label">Active</div><div class="kpi-value pos" id="m-active">—</div><div class="kpi-sub">Inactive: <span id="m-inactive">—</span></div></div>
-      <div class="kpi-card"><div class="kpi-label">Connected</div><div class="kpi-value" id="m-conn">—</div><div class="kpi-sub">Not connected: <span id="m-noconn">—</span></div></div>
+      <div class="kpi-card">
+        <div class="kpi-label">Max Potential</div>
+        <div class="kpi-value" id="m-maxpot">—</div>
+        <div class="kpi-sub">Best-month sum (last 14m)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Overall Potential</div>
+        <div class="kpi-value" id="m-overallpot">—</div>
+        <div class="kpi-sub">All platforms incl. ID</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Target (May)</div>
+        <div class="kpi-value" id="m-target">—</div>
+        <div class="kpi-sub">Combined target</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">LMTD (Apr'26)</div>
+        <div class="kpi-value" id="m-lmtd">—</div>
+        <div class="kpi-sub">Last month MTD</div>
+      </div>
     </div>
-    <div class="kpi-card"><div class="kpi-label">Zone-wise MTD</div><canvas id="chartZone" height="120"></canvas></div>
+
+    <div class="card-grid grid-4">
+      <div class="kpi-card"><div class="kpi-label">Calls (total)</div><div class="kpi-value pos" id="m-calls">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Visits (total)</div><div class="kpi-value pos" id="m-visits">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Growth Partners</div><div class="kpi-value pos" id="m-growth">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Degrowth Partners</div><div class="kpi-value neg" id="m-degrowth">—</div></div>
+    </div>
+
+    <div class="card-grid grid-2">
+      <div class="kpi-card chart-card">
+        <div class="kpi-label">Zone-wise Business (MTD)</div>
+        <canvas id="chartZoneMtd" height="220"></canvas>
+      </div>
+      <div class="kpi-card chart-card">
+        <div class="kpi-label">Zone-wise Active vs Inactive</div>
+        <canvas id="chartZoneActive" height="220"></canvas>
+      </div>
+    </div>
+
+    <div class="card-grid grid-2">
+      <div class="kpi-card chart-card">
+        <div class="kpi-label">Zone-wise Max Potential</div>
+        <canvas id="chartZoneMaxPot" height="220"></canvas>
+      </div>
+      <div class="kpi-card chart-card">
+        <div class="kpi-label">MTD vs LMTD by Zone</div>
+        <canvas id="chartZoneMtdLmtd" height="220"></canvas>
+      </div>
+    </div>
   </section>
 
-  <!-- ZONE -->
-  <section class="tab-pane" id="pane-zone">
-    <h2 class="section-title">Zone-wise Snapshot</h2>
-    <div class="team-grid" id="zoneGrid"></div>
+  <!-- ===================== ZONE PERFORMANCE ===================== -->
+  <section class="tab-pane" id="pane-zones">
+    <h2 class="section-title">Zone Performance</h2>
+    <p class="section-sub">Click any zone to see ZH/RH/SH/RM/AM breakdown for that zone.</p>
+    <div class="zone-grid" id="zoneGrid"></div>
   </section>
 
-  <!-- HEAD PERFORMANCE -->
-  <section class="tab-pane" id="pane-head">
-    <h2 class="section-title">Head Performance</h2>
+  <!-- ===================== ROLE PERFORMANCE ===================== -->
+  <section class="tab-pane" id="pane-roles">
+    <h2 class="section-title">Role-Level Performance</h2>
     <div class="filter-bar">
-      <select id="hRole">
-        <option value="ZH">ZH</option>
-        <option value="RH">RH</option>
-        <option value="SH">SH</option>
-        <option value="RM">RM</option>
-        <option value="AM">AM</option>
+      <select id="fRole">
+        <option value="ZH">ZH (Zonal Head)</option>
+        <option value="RH">RH (Regional Head)</option>
+        <option value="SH">SH (State Head)</option>
+        <option value="RM">RM (Regional Manager)</option>
+        <option value="AM" selected>AM (Area Manager)</option>
       </select>
-      <select id="hZone"><option value="">All zones</option><option>North</option><option>South</option><option>East</option><option>West</option><option>RON</option><option>Other</option></select>
-      <input type="text" id="hSearch" placeholder="Search name…" />
+      <input type="text" id="fRoleSearch" placeholder="Search name…" />
+      <select id="fRoleSort">
+        <option value="mtd">Sort: MTD (high → low)</option>
+        <option value="ach">Sort: Achievement %</option>
+        <option value="partners">Sort: Partner count</option>
+        <option value="name">Sort: Name</option>
+      </select>
     </div>
-    <div class="table-wrap">
-      <table class="ptable" id="headTable">
-        <thead><tr>
-          <th>Name</th><th>Role</th><th>Zone</th><th>Partners</th>
-          <th>Max Potential</th><th>Overall Potential</th>
-          <th>Target</th><th>MTD</th><th>Achievement</th>
-          <th>Active</th><th>Inactive</th><th>Connected</th>
-        </tr></thead>
-        <tbody id="headTbody"></tbody>
-      </table>
-    </div>
+    <div class="role-grid" id="roleGrid"></div>
   </section>
 
-  <!-- STATE -->
-  <section class="tab-pane" id="pane-state">
-    <h2 class="section-title">State-wise Performance</h2>
+  <!-- ===================== STATE PERFORMANCE ===================== -->
+  <section class="tab-pane" id="pane-states">
+    <h2 class="section-title">State Performance</h2>
+    <p class="section-sub">All states ranked by MTD business.</p>
     <div class="table-wrap">
-      <table class="ptable" id="stateTable">
-        <thead><tr>
-          <th>State</th><th>Partners</th><th>Max Potential</th><th>Overall Potential</th>
-          <th>Target</th><th>MTD</th><th>LMTD</th><th>Ach.</th>
-          <th>Active</th><th>Inactive</th><th>Connected</th>
-        </tr></thead>
+      <table class="ptable">
+        <thead>
+          <tr>
+            <th>State</th><th>Zone</th><th>Partners</th>
+            <th>Max Pot.</th><th>Overall Pot.</th>
+            <th>Target</th><th>MTD</th><th>LMTD</th><th>MoM%</th>
+            <th>Ach.%</th><th>Active</th><th>Connected</th><th>Calls</th><th>Visits</th>
+          </tr>
+        </thead>
         <tbody id="stateTbody"></tbody>
       </table>
     </div>
   </section>
 
-  <!-- LOGIN -->
-  <section class="tab-pane" id="pane-login">
+  <!-- ===================== LOGINS ===================== -->
+  <section class="tab-pane" id="pane-logins">
     <h2 class="section-title">Login Activity</h2>
-    <div class="kpi-card" style="margin-bottom:14px;"><div class="kpi-label">Total Logins</div><div class="kpi-value" id="totalLogins">—</div></div>
+    <div class="filter-bar">
+      <input type="text" id="fLoginSearch" placeholder="Search user…" />
+      <button class="btn-ghost" id="btnRefreshLogins">Refresh</button>
+    </div>
+    <div class="kpi-row">
+      <div class="kpi-mini"><div><div class="kpi-mini-label">Total Logins</div><div class="kpi-mini-val" id="loginTotal">—</div></div></div>
+      <div class="kpi-mini"><div><div class="kpi-mini-label">Unique Users</div><div class="kpi-mini-val" id="loginUsers">—</div></div></div>
+    </div>
     <div class="table-wrap">
       <table class="ptable">
-        <thead><tr><th>GID</th><th>Name</th><th>Role</th><th>Zone</th><th>Login Count</th><th>Last Login</th></tr></thead>
-        <tbody id="loginTbody"></tbody>
+        <thead>
+          <tr><th>User</th><th>GID</th><th>Role</th><th>Zone</th><th>Logins</th><th>Last Login</th></tr>
+        </thead>
+        <tbody id="loginsTbody"></tbody>
       </table>
     </div>
   </section>
+
+  <!-- ===================== DRILL MODAL ===================== -->
+  <div class="modal hidden" id="drillModal">
+    <div class="modal-backdrop" id="modalBackdrop"></div>
+    <div class="modal-window large">
+      <button class="modal-close" id="modalClose">×</button>
+      <div id="modalBody"></div>
+    </div>
+  </div>
 
   <script src="config.js"></script>
   <script src="master.js"></script>
