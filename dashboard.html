@@ -1,205 +1,257 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Dashboard — Partner Engage</title>
-  <link rel="stylesheet" href="style.css"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Partner Engage Portal — InsuranceDekho</title>
+  <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
-<body class="dashboard-page">
+<body class="dashboard-body">
 
-  <!-- TOP BAR -->
+  <!-- ===================== TOP BAR ===================== -->
   <header class="topbar">
     <div class="topbar-left">
-      <svg width="28" height="28" viewBox="0 0 36 36" fill="none">
-        <rect width="36" height="36" rx="8" fill="#e05a2b"/>
-        <path d="M18 6 L28 11 V19 C28 25 23 30 18 31 C13 30 8 25 8 19 V11 Z" fill="white" opacity="0.9"/>
-        <path d="M14 18 L17 21 L22 15" stroke="#e05a2b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <div>
-        <span class="brand-name">InsuranceDekho</span>
-        <span class="brand-sep">|</span>
-        <span class="brand-product">Partner Engage</span>
+      <div class="brand">
+        <span class="brand-mark">ID</span>
+        <div>
+          <div class="brand-name">Partner Engage Portal</div>
+          <div class="brand-sub">InsuranceDekho</div>
+        </div>
       </div>
     </div>
     <div class="topbar-right">
-      <div class="user-info">
-        <div class="user-avatar" id="userAvatar">--</div>
-        <div>
-          <div class="user-name" id="userName">Loading...</div>
-          <div class="user-role" id="userRole">--</div>
-        </div>
+      <div class="user-chip">
+        <div class="user-chip-name" id="userName">—</div>
+        <div class="user-chip-role" id="userRole">—</div>
       </div>
-      <button class="btn-logout" onclick="logout()">Sign Out</button>
+      <button class="btn-ghost" id="btnLogout">Logout</button>
     </div>
   </header>
 
-  <!-- TAB NAV -->
-  <div class="tab-nav" id="tabNav">
-    <button class="tab-btn active" id="tabAll" onclick="switchTab('all')">All Partners</button>
-    <button class="tab-btn" id="tabMine" onclick="switchTab('mine')" style="display:none">My Partners</button>
-    <button class="tab-btn" id="tabTeam" onclick="switchTab('team')" style="display:none">Team Performance</button>
-  </div>
+  <!-- ===================== TABS ===================== -->
+  <nav class="tabs">
+    <button class="tab active" data-tab="overall">Overall Project</button>
+    <button class="tab" data-tab="all">All Partners</button>
+    <button class="tab" data-tab="mine" id="tabMine">My Partners</button>
+    <button class="tab" data-tab="am" id="tabAm">AM Performance</button>
+    <button class="tab" data-tab="team" id="tabTeam">Team Performance</button>
+  </nav>
 
-  <main class="main-content">
+  <!-- ===================== STATUS / LOADER ===================== -->
+  <div id="statusBar" class="status-bar hidden"></div>
 
-    <!-- ===== ALL PARTNERS TAB ===== -->
-    <div id="panelAll">
-      <div class="section-label" id="zoneLabel">Loading...</div>
-      <div class="summary-cards" id="summaryCards">
-        <div class="card-skel"></div><div class="card-skel"></div>
-        <div class="card-skel"></div><div class="card-skel"></div>
-        <div class="card-skel"></div><div class="card-skel"></div>
-        <div class="card-skel"></div><div class="card-skel"></div>
-      </div>
-      <div class="filter-bar">
-        <input type="text" id="searchInput" placeholder="Search name / GID / city…" oninput="applyFilters()"/>
-        <select id="stateFilter" onchange="applyFilters()"><option value="">All states</option></select>
-        <select id="statusFilter" onchange="applyFilters()">
-          <option value="">All status</option>
-          <option value="active">Active</option>
-          <option value="inactive">Inactive</option>
-        </select>
-        <select id="trendFilter" onchange="applyFilters()">
-          <option value="">All trend</option>
-          <option value="growth">Growth</option>
-          <option value="degrowth">De-growth</option>
-        </select>
-        <select id="ownerFilter" onchange="applyFilters()" style="display:none"><option value="">All owners</option></select>
-        <select id="connectFilter" onchange="applyFilters()">
-          <option value="">All connect status</option>
-          <option value="connected">Connected</option>
-          <option value="notconnected">Not connected</option>
-        </select>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th style="width:18%">Partner</th>
-              <th style="width:9%">City/State</th>
-              <th style="width:9%">Owner</th>
-              <th style="width:8%">Potential</th>
-              <th style="width:7%">Target (May)</th>
-              <th style="width:7%">MTD</th>
-              <th style="width:7%">LMTD</th>
-              <th style="width:5%">MoM%</th>
-              <th style="width:14%">Target vs Ach.</th>
-              <th style="width:6%">Trend</th>
-              <th style="width:6%">Status</th>
-              <th style="width:5%">Connect</th>
-              <th style="width:5%"></th>
-            </tr>
-          </thead>
-          <tbody id="partnerBody">
-            <tr><td colspan="13" class="loading-row">Loading partners...</td></tr>
-          </tbody>
-        </table>
-        <div class="table-footer" id="tableFooter"></div>
-      </div>
-    </div>
+  <!-- ===================== OVERALL PROJECT TAB ===================== -->
+  <section class="tab-pane active" id="pane-overall">
+    <h2 class="section-title">Overall Project Snapshot</h2>
+    <p class="section-sub">Live rollup of everything within your zone. All numbers come straight from the master sheet. <span id="zoneChips"></span></p>
 
-    <!-- ===== MY PARTNERS TAB ===== -->
-    <div id="panelMine" style="display:none">
-      <div class="section-label">My Assigned Partners</div>
-      <div class="summary-cards" id="mySummaryCards"></div>
-      <div class="table-wrap" style="margin-top:14px">
-        <table>
-          <thead>
-            <tr>
-              <th style="width:20%">Partner</th>
-              <th style="width:10%">City/State</th>
-              <th style="width:9%">Potential</th>
-              <th style="width:8%">Target (May)</th>
-              <th style="width:8%">MTD</th>
-              <th style="width:8%">LMTD</th>
-              <th style="width:6%">MoM%</th>
-              <th style="width:14%">Target vs Ach.</th>
-              <th style="width:7%">Trend</th>
-              <th style="width:7%">Status</th>
-              <th style="width:5%"></th>
-            </tr>
-          </thead>
-          <tbody id="myPartnerBody"><tr><td colspan="11" class="loading-row">Loading...</td></tr></tbody>
-        </table>
-        <div class="table-footer" id="myTableFooter"></div>
-      </div>
-    </div>
-
-    <!-- ===== TEAM TAB ===== -->
-    <div id="panelTeam" style="display:none">
-      <div class="section-label" id="teamLabel">Team Performance</div>
-      <div class="team-grid" id="teamGrid">
-        <div class="card-skel" style="height:160px"></div>
-        <div class="card-skel" style="height:160px"></div>
-      </div>
-    </div>
-
-  </main>
-
-  <!-- PARTNER DETAIL MODAL -->
-  <div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
-    <div class="modal-box" id="modalBox">
-      <div class="modal-header">
-        <div>
-          <div class="modal-partner-name" id="mName">—</div>
-          <div class="modal-partner-meta" id="mMeta">—</div>
+    <div class="card-grid grid-3">
+      <div class="kpi-card kpi-lg">
+        <div class="kpi-label">Total Partners</div>
+        <div class="kpi-value" id="op-totalPartners">—</div>
+        <div class="kpi-foot">
+          <span class="pill pill-green">Active: <b id="op-active">—</b></span>
+          <span class="pill pill-red">Inactive: <b id="op-inactive">—</b></span>
         </div>
-        <button class="modal-close" onclick="closeModalDirect()">✕</button>
       </div>
-      <div class="modal-kpi-grid" id="mKpis"></div>
-      <div class="potential-box" id="mPotentialBox"></div>
-      <div class="modal-section-title">14-Month Trend</div>
-      <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
-      <div class="modal-section-title" style="margin-top:16px">Month-by-Month History</div>
-      <div class="table-wrap" style="margin-bottom:16px">
-        <table class="mini-table">
-          <thead><tr><th>Month</th><th>Premium (₹)</th><th>MoM Change</th></tr></thead>
-          <tbody id="mHistoryBody"></tbody>
-        </table>
+      <div class="kpi-card kpi-lg">
+        <div class="kpi-label">Business Generated (MTD)</div>
+        <div class="kpi-value" id="op-business">—</div>
+        <div class="kpi-foot">
+          <span class="pill" id="op-momPill">MoM: <b id="op-mom">—</b></span>
+          <span class="pill pill-blue">Target Ach: <b id="op-ach">—</b></span>
+        </div>
       </div>
-      <div class="modal-section-title">Engagement & Connect Status</div>
-      <div class="modal-engage-grid" id="mEngageGrid"></div>
-      <div class="modal-section-title" style="margin-top:16px">Remark</div>
-      <div class="remark-wrap" id="mRemarkWrap">
-        <textarea id="mRemark" rows="3" placeholder="Add remark for this partner…"></textarea>
-        <button class="btn-save-remark" id="saveRemarkBtn" onclick="saveRemark()">Save Remark</button>
-        <span class="remark-saved" id="remarkSaved" style="display:none">✓ Saved</span>
+      <div class="kpi-card kpi-lg">
+        <div class="kpi-label">Engagement</div>
+        <div class="kpi-value" id="op-connected">—</div>
+        <div class="kpi-foot">
+          <span class="pill pill-green">Connected: <b id="op-conn">—</b></span>
+          <span class="pill pill-amber">Not Connected: <b id="op-notconn">—</b></span>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- TEAM MEMBER PARTNERS MODAL -->
-  <div class="modal-overlay" id="teamModalOverlay" onclick="closeTeamModal(event)">
-    <div class="modal-box" style="max-width:900px">
-      <div class="modal-header">
-        <div>
-          <div class="modal-partner-name" id="tmName">—</div>
-          <div class="modal-partner-meta" id="tmMeta">—</div>
-        </div>
-        <button class="modal-close" onclick="closeTeamModalDirect()">✕</button>
+    <div class="card-grid grid-4">
+      <div class="kpi-card">
+        <div class="kpi-label">Max Potential</div>
+        <div class="kpi-value" id="op-maxpot">—</div>
+        <div class="kpi-sub">Max month with ID (last 14m)</div>
       </div>
-      <div class="modal-kpi-grid" id="tmKpis" style="margin-bottom:14px"></div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th style="width:22%">Partner</th>
-              <th style="width:10%">City/State</th>
-              <th style="width:9%">MTD</th>
-              <th style="width:9%">LMTD</th>
-              <th style="width:6%">MoM%</th>
-              <th style="width:16%">Target vs Ach.</th>
-              <th style="width:8%">Trend</th>
-              <th style="width:8%">Status</th>
-              <th style="width:7%">Connect</th>
-              <th style="width:5%"></th>
-            </tr>
-          </thead>
-          <tbody id="tmPartnerBody"></tbody>
-        </table>
+      <div class="kpi-card">
+        <div class="kpi-label">Overall Potential</div>
+        <div class="kpi-value" id="op-overallpot">—</div>
+        <div class="kpi-sub">Across all platforms incl. ID</div>
       </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Target (May)</div>
+        <div class="kpi-value" id="op-target">—</div>
+        <div class="kpi-sub">Projection</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Max-Pot Achievement</div>
+        <div class="kpi-value" id="op-maxAch">—</div>
+        <div class="kpi-sub">MTD ÷ Max Potential</div>
+      </div>
+    </div>
+
+    <div class="card-grid grid-4">
+      <div class="kpi-card"><div class="kpi-label">Calls (total)</div><div class="kpi-value" id="op-calls">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Visits (total)</div><div class="kpi-value" id="op-visits">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Growth</div><div class="kpi-value" id="op-growth">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Degrowth</div><div class="kpi-value" id="op-degrowth">—</div></div>
+    </div>
+
+    <div class="card-grid grid-2">
+      <div class="kpi-card chart-card">
+        <div class="kpi-label">Activity split</div>
+        <canvas id="chartActivity" height="170"></canvas>
+      </div>
+      <div class="kpi-card chart-card">
+        <div class="kpi-label">Connect split</div>
+        <canvas id="chartConnect" height="170"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== ALL PARTNERS TAB ===================== -->
+  <section class="tab-pane" id="pane-all">
+    <div class="kpi-row" id="kpiRow"></div>
+
+    <div class="filter-bar">
+      <input type="text" id="fSearch" placeholder="Search name / GID / city / EmpID…" />
+      <select id="fState"><option value="">All states</option></select>
+      <select id="fCity"><option value="">All cities</option></select>
+      <select id="fOwner"><option value="">All owners</option></select>
+      <select id="fOwnerRole">
+        <option value="">All roles</option>
+        <option value="ZH">ZH</option><option value="RH">RH</option>
+        <option value="SH">SH</option><option value="RM">RM</option><option value="AM">AM</option>
+      </select>
+      <select id="fActive">
+        <option value="">All status</option>
+        <option value="active">Active</option><option value="inactive">Inactive</option>
+      </select>
+      <select id="fGrowth">
+        <option value="">All trend</option>
+        <option value="growth">Growth</option><option value="degrowth">Degrowth</option>
+      </select>
+      <select id="fConnect">
+        <option value="">All connect status</option>
+        <option value="connected">Connected</option><option value="notconnected">Not connected</option>
+      </select>
+      <select id="fBusiness">
+        <option value="">All MTD ranges</option>
+        <option value="0">No business (₹0)</option>
+        <option value="0-100000">&lt; ₹1L</option>
+        <option value="100000-500000">₹1L – ₹5L</option>
+        <option value="500000-1000000">₹5L – ₹10L</option>
+        <option value="1000000-">&gt; ₹10L</option>
+      </select>
+      <select id="fMaxPot">
+        <option value="">All Max-Pot ranges</option>
+        <option value="0-100000">&lt; ₹1L</option>
+        <option value="100000-500000">₹1L – ₹5L</option>
+        <option value="500000-1000000">₹5L – ₹10L</option>
+        <option value="1000000-">&gt; ₹10L</option>
+      </select>
+      <button class="btn-ghost" id="btnClearFilters">Clear</button>
+      <button class="btn-primary" id="btnExportCsv">Export CSV</button>
+    </div>
+
+    <div class="filter-count" id="filterCount"></div>
+
+    <div class="table-wrap">
+      <table class="ptable" id="partnerTable">
+        <thead>
+          <tr>
+            <th>Partner</th><th>City / State</th><th>Owner</th>
+            <th>Max Potential</th><th>Overall Potential</th>
+            <th>Target (May)</th><th>MTD (May'26)</th><th>LMTD (Apr'26)</th>
+            <th>MoM %</th><th>Target vs Ach.</th><th>Trend</th>
+            <th>Status</th><th>Connect</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="partnerTbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===================== MY PARTNERS TAB ===================== -->
+  <section class="tab-pane" id="pane-mine">
+    <div class="kpi-row" id="kpiRowMine"></div>
+    <div class="filter-bar">
+      <input type="text" id="fSearchMine" placeholder="Search…" />
+      <select id="fStateMine"><option value="">All states</option></select>
+      <select id="fActiveMine">
+        <option value="">All status</option>
+        <option value="active">Active</option><option value="inactive">Inactive</option>
+      </select>
+      <select id="fConnectMine">
+        <option value="">All connect</option>
+        <option value="connected">Connected</option><option value="notconnected">Not connected</option>
+      </select>
+      <button class="btn-ghost" id="btnClearMine">Clear</button>
+    </div>
+    <div class="table-wrap">
+      <table class="ptable" id="mineTable">
+        <thead>
+          <tr>
+            <th>Partner</th><th>City / State</th>
+            <th>Max Potential</th><th>Overall Potential</th>
+            <th>Target (May)</th><th>MTD</th><th>LMTD</th><th>MoM %</th>
+            <th>Status</th><th>Connect</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="mineTbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===================== AM PERFORMANCE TAB ===================== -->
+  <section class="tab-pane" id="pane-am">
+    <h2 class="section-title">AM Performance</h2>
+    <p class="section-sub">Every AM in your zone. Click any card to drill into all partners under that AM.</p>
+    <div class="filter-bar">
+      <input type="text" id="fAmSearch" placeholder="Search AM name…" />
+      <select id="fAmState"><option value="">All states</option></select>
+      <select id="fAmSort">
+        <option value="mtd">Sort: MTD (high → low)</option>
+        <option value="ach">Sort: Achievement %</option>
+        <option value="partners">Sort: Partner count</option>
+        <option value="active">Sort: Active partners</option>
+        <option value="name">Sort: Name (A–Z)</option>
+      </select>
+      <select id="fAmStatus">
+        <option value="">All AMs</option>
+        <option value="active">Has active partners only</option>
+        <option value="inactive">Has inactive partners only</option>
+      </select>
+    </div>
+    <div class="team-grid" id="amGrid"></div>
+  </section>
+
+  <!-- ===================== TEAM PERFORMANCE TAB ===================== -->
+  <section class="tab-pane" id="pane-team">
+    <div class="filter-bar">
+      <select id="fTeamRole">
+        <option value="">All roles in my team</option>
+        <option value="RH">RH</option><option value="SH">SH</option>
+        <option value="RM">RM</option><option value="AM">AM</option>
+      </select>
+      <input type="text" id="fTeamSearch" placeholder="Search team member…" />
+      <select id="fTeamState"><option value="">All states</option></select>
+    </div>
+    <div class="team-grid" id="teamGrid"></div>
+  </section>
+
+  <!-- ===================== PARTNER MODAL ===================== -->
+  <div class="modal hidden" id="partnerModal">
+    <div class="modal-backdrop" id="modalBackdrop"></div>
+    <div class="modal-window">
+      <button class="modal-close" id="modalClose">×</button>
+      <div id="modalBody"></div>
     </div>
   </div>
 

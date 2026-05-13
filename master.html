@@ -1,158 +1,120 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Master Dashboard — Partner Engage</title>
-  <link rel="stylesheet" href="style.css"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Master Dashboard — Partner Engage Portal</title>
+  <link rel="stylesheet" href="style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <style>
-    .master-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:14px; margin-bottom:20px; }
-    .zone-card { background:var(--white); border:1px solid var(--gray-200); border-radius:var(--radius-lg); padding:18px; box-shadow:var(--shadow-sm); }
-    .zone-card-title { font-size:16px; font-weight:700; margin-bottom:4px; }
-    .zone-card-sub   { font-size:12px; color:var(--gray-400); margin-bottom:12px; }
-    .zone-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px; }
-    .zone-stat-val { font-size:18px; font-weight:700; }
-    .zone-stat-lbl { font-size:10px; color:var(--gray-400); margin-top:2px; }
-    .head-table th, .head-table td { padding:8px 10px; font-size:12px; }
-    .head-table { margin-bottom:20px; }
-    .filter-pill { display:inline-flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:16px; }
-    .filter-pill select { height:32px; padding:0 10px; font-size:13px; border:1px solid var(--gray-200); border-radius:99px; background:var(--white); color:var(--gray-700); outline:none; }
-    .login-stat-box { background:var(--white); border:1px solid var(--gray-200); border-radius:var(--radius-lg); padding:18px; margin-bottom:20px; }
-    .login-badge { display:inline-flex; align-items:center; gap:6px; background:var(--green-light); color:var(--green); font-size:11px; font-weight:600; padding:3px 10px; border-radius:99px; }
-    .tab-nav { background:var(--white); border-bottom:1px solid var(--gray-200); padding:0 24px; display:flex; gap:0; }
-    .tab-btn { background:none; border:none; border-bottom:2px solid transparent; padding:12px 20px; font-size:14px; font-weight:500; color:var(--gray-500); cursor:pointer; margin-bottom:-1px; transition:color 0.15s,border-color 0.15s; }
-    .tab-btn:hover { color:var(--gray-900); }
-    .tab-btn.active { color:var(--orange); border-bottom-color:var(--orange); }
-    .role-badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 7px; border-radius:4px; background:var(--orange-light); color:var(--orange); }
-  </style>
 </head>
-<body class="dashboard-page">
+<body class="dashboard-body">
 
   <header class="topbar">
     <div class="topbar-left">
-      <svg width="28" height="28" viewBox="0 0 36 36" fill="none">
-        <rect width="36" height="36" rx="8" fill="#e05a2b"/>
-        <path d="M18 6 L28 11 V19 C28 25 23 30 18 31 C13 30 8 25 8 19 V11 Z" fill="white" opacity="0.9"/>
-        <path d="M14 18 L17 21 L22 15" stroke="#e05a2b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <div>
-        <span class="brand-name">InsuranceDekho</span>
-        <span class="brand-sep">|</span>
-        <span class="brand-product">Partner Engage — <strong style="color:var(--orange)">Master View</strong></span>
+      <div class="brand">
+        <span class="brand-mark">M</span>
+        <div>
+          <div class="brand-name">Master Dashboard</div>
+          <div class="brand-sub">Central Team · InsuranceDekho</div>
+        </div>
       </div>
     </div>
     <div class="topbar-right">
-      <div class="user-info">
-        <div class="user-avatar" id="userAvatar">--</div>
-        <div>
-          <div class="user-name" id="userName">Loading...</div>
-          <div class="user-role" style="color:var(--orange);font-weight:600">Central Team</div>
-        </div>
+      <div class="user-chip">
+        <div class="user-chip-name" id="userName">—</div>
+        <div class="user-chip-role" id="userRole">MASTER</div>
       </div>
-      <button class="btn-logout" onclick="logout()">Sign Out</button>
+      <button class="btn-ghost" id="btnLogout">Logout</button>
     </div>
   </header>
 
-  <div class="tab-nav">
-    <button class="tab-btn active" onclick="switchMasterTab('overview')">Overview</button>
-    <button class="tab-btn" onclick="switchMasterTab('zones')">Zone-wise</button>
-    <button class="tab-btn" onclick="switchMasterTab('heads')">Head Performance</button>
-    <button class="tab-btn" onclick="switchMasterTab('states')">State-wise</button>
-    <button class="tab-btn" onclick="switchMasterTab('logins')">Login Activity</button>
-  </div>
+  <nav class="tabs">
+    <button class="tab active" data-tab="overview">Overview</button>
+    <button class="tab" data-tab="zone">Zone-wise</button>
+    <button class="tab" data-tab="head">Head Performance</button>
+    <button class="tab" data-tab="state">State-wise</button>
+    <button class="tab" data-tab="login">Login Activity</button>
+  </nav>
 
-  <main class="main-content">
+  <div id="statusBar" class="status-bar hidden"></div>
 
-    <!-- OVERVIEW -->
-    <div id="mPanelOverview">
-      <div class="section-label">Overall Summary — All Zones — All Partners</div>
-      <div class="summary-cards" id="mOverallCards">
-        <div class="card-skel"></div><div class="card-skel"></div>
-        <div class="card-skel"></div><div class="card-skel"></div>
-        <div class="card-skel"></div><div class="card-skel"></div>
-        <div class="card-skel"></div><div class="card-skel"></div>
-      </div>
-      <div style="height:280px;background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);padding:20px;box-shadow:var(--shadow-sm)">
-        <canvas id="zoneChart"></canvas>
-      </div>
+  <!-- OVERVIEW -->
+  <section class="tab-pane active" id="pane-overview">
+    <h2 class="section-title">Overall Project (All India)</h2>
+    <div class="card-grid grid-4">
+      <div class="kpi-card"><div class="kpi-label">Total Partners</div><div class="kpi-value" id="m-total">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">MTD Business</div><div class="kpi-value" id="m-mtd">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Target (May)</div><div class="kpi-value" id="m-target">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Achievement</div><div class="kpi-value" id="m-ach">—</div></div>
     </div>
-
-    <!-- ZONES -->
-    <div id="mPanelZones" style="display:none">
-      <div class="section-label">Zone-wise Performance</div>
-      <div class="master-grid" id="zoneGrid"></div>
+    <div class="card-grid grid-4">
+      <div class="kpi-card"><div class="kpi-label">Max Potential</div><div class="kpi-value" id="m-maxpot">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Overall Potential</div><div class="kpi-value" id="m-overallpot">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Active</div><div class="kpi-value pos" id="m-active">—</div><div class="kpi-sub">Inactive: <span id="m-inactive">—</span></div></div>
+      <div class="kpi-card"><div class="kpi-label">Connected</div><div class="kpi-value" id="m-conn">—</div><div class="kpi-sub">Not connected: <span id="m-noconn">—</span></div></div>
     </div>
+    <div class="kpi-card"><div class="kpi-label">Zone-wise MTD</div><canvas id="chartZone" height="120"></canvas></div>
+  </section>
 
-    <!-- HEADS -->
-    <div id="mPanelHeads" style="display:none">
-      <div class="section-label">Head Performance</div>
-      <div class="filter-pill">
-        <select id="roleFilter" onchange="renderHeadsTab()">
-          <option value="ZH">ZH — Zonal Heads</option>
-          <option value="RH">RH — Regional Heads</option>
-          <option value="SH">SH — State Heads</option>
-          <option value="RM">RM — Relationship Managers</option>
-          <option value="AM">AM — Account Managers</option>
-        </select>
-        <select id="zoneFilterHeads" onchange="renderHeadsTab()"><option value="">All zones</option></select>
-      </div>
-      <div class="table-wrap">
-        <table class="head-table" id="headsTable">
-          <thead>
-            <tr>
-              <th style="width:18%">Name</th>
-              <th style="width:8%">Role</th>
-              <th style="width:10%">Zone</th>
-              <th style="width:8%">Partners</th>
-              <th style="width:10%">Potential</th>
-              <th style="width:10%">May Target</th>
-              <th style="width:10%">MTD</th>
-              <th style="width:8%">LMTD</th>
-              <th style="width:7%">MoM%</th>
-              <th style="width:11%">Achievement</th>
-              <th style="width:6%">Active</th>
-            </tr>
-          </thead>
-          <tbody id="headsBody"><tr><td colspan="11" class="loading-row">Loading...</td></tr></tbody>
-        </table>
-      </div>
+  <!-- ZONE -->
+  <section class="tab-pane" id="pane-zone">
+    <h2 class="section-title">Zone-wise Snapshot</h2>
+    <div class="team-grid" id="zoneGrid"></div>
+  </section>
+
+  <!-- HEAD PERFORMANCE -->
+  <section class="tab-pane" id="pane-head">
+    <h2 class="section-title">Head Performance</h2>
+    <div class="filter-bar">
+      <select id="hRole">
+        <option value="ZH">ZH</option>
+        <option value="RH">RH</option>
+        <option value="SH">SH</option>
+        <option value="RM">RM</option>
+        <option value="AM">AM</option>
+      </select>
+      <select id="hZone"><option value="">All zones</option><option>North</option><option>South</option><option>East</option><option>West</option><option>RON</option><option>Other</option></select>
+      <input type="text" id="hSearch" placeholder="Search name…" />
     </div>
-
-    <!-- STATES -->
-    <div id="mPanelStates" style="display:none">
-      <div class="section-label">State-wise Performance</div>
-      <div class="table-wrap">
-        <table class="head-table">
-          <thead>
-            <tr>
-              <th style="width:15%">State</th>
-              <th style="width:8%">Zone</th>
-              <th style="width:8%">Partners</th>
-              <th style="width:10%">Potential</th>
-              <th style="width:10%">May Target</th>
-              <th style="width:12%">MTD</th>
-              <th style="width:10%">LMTD</th>
-              <th style="width:8%">MoM%</th>
-              <th style="width:12%">Achievement %</th>
-              <th style="width:7%">Active</th>
-            </tr>
-          </thead>
-          <tbody id="statesBody"><tr><td colspan="10" class="loading-row">Loading...</td></tr></tbody>
-        </table>
-      </div>
+    <div class="table-wrap">
+      <table class="ptable" id="headTable">
+        <thead><tr>
+          <th>Name</th><th>Role</th><th>Zone</th><th>Partners</th>
+          <th>Max Potential</th><th>Overall Potential</th>
+          <th>Target</th><th>MTD</th><th>Achievement</th>
+          <th>Active</th><th>Inactive</th><th>Connected</th>
+        </tr></thead>
+        <tbody id="headTbody"></tbody>
+      </table>
     </div>
+  </section>
 
-    <!-- LOGINS -->
-    <div id="mPanelLogins" style="display:none">
-      <div class="section-label">Login Activity</div>
-      <div class="login-stat-box">
-        <div style="font-size:14px;font-weight:600;margin-bottom:10px">Who has logged in</div>
-        <div id="loginStats"><div class="card-skel" style="height:40px"></div></div>
-      </div>
+  <!-- STATE -->
+  <section class="tab-pane" id="pane-state">
+    <h2 class="section-title">State-wise Performance</h2>
+    <div class="table-wrap">
+      <table class="ptable" id="stateTable">
+        <thead><tr>
+          <th>State</th><th>Partners</th><th>Max Potential</th><th>Overall Potential</th>
+          <th>Target</th><th>MTD</th><th>LMTD</th><th>Ach.</th>
+          <th>Active</th><th>Inactive</th><th>Connected</th>
+        </tr></thead>
+        <tbody id="stateTbody"></tbody>
+      </table>
     </div>
+  </section>
 
-  </main>
+  <!-- LOGIN -->
+  <section class="tab-pane" id="pane-login">
+    <h2 class="section-title">Login Activity</h2>
+    <div class="kpi-card" style="margin-bottom:14px;"><div class="kpi-label">Total Logins</div><div class="kpi-value" id="totalLogins">—</div></div>
+    <div class="table-wrap">
+      <table class="ptable">
+        <thead><tr><th>GID</th><th>Name</th><th>Role</th><th>Zone</th><th>Login Count</th><th>Last Login</th></tr></thead>
+        <tbody id="loginTbody"></tbody>
+      </table>
+    </div>
+  </section>
 
   <script src="config.js"></script>
   <script src="master.js"></script>

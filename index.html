@@ -1,108 +1,113 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Partner Engage — InsuranceDekho</title>
-  <link rel="stylesheet" href="style.css"/>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — Partner Engage Portal</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
-<body class="login-page">
+<body class="login-body">
+  <div class="login-card">
+    <h1>Partner Engage Portal</h1>
+    <div class="sub">InsuranceDekho · Sign in to continue</div>
 
-  <div class="login-container">
-    <div class="login-logo">
-      <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-        <rect width="36" height="36" rx="8" fill="#e05a2b"/>
-        <path d="M18 6 L28 11 V19 C28 25 23 30 18 31 C13 30 8 25 8 19 V11 Z" fill="white" opacity="0.9"/>
-        <path d="M14 18 L17 21 L22 15" stroke="#e05a2b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-      <div>
-        <div class="login-brand">InsuranceDekho</div>
-        <div class="login-sub">Partner Engage Portal</div>
-      </div>
+    <!-- Step 1: GID -->
+    <div id="step-gid">
+      <label>User ID (GID)</label>
+      <input type="text" id="gidInput" placeholder="e.g. IDK-ANILKUMAR" autocomplete="username" />
+      <button class="btn-primary" id="btnContinue">Continue</button>
+      <div class="login-msg" id="gidMsg"></div>
     </div>
 
-    <!-- STEP 1: Enter GID -->
-    <div id="stepGid">
-      <h1 class="login-title">Sign in to your account</h1>
-      <div class="form-group">
-        <label for="gidInput">Your User ID (GID)</label>
-        <input type="text" id="gidInput" placeholder="e.g. IDK-ANILKUMAR" autocomplete="username"/>
-      </div>
-      <div id="gidError" class="error-msg" style="display:none"></div>
-      <button class="btn-primary" onclick="checkGid()">
-        <span id="gidBtnText">Continue</span>
-        <span id="gidSpinner" class="spinner" style="display:none"></span>
-      </button>
+    <!-- Step 2: Password -->
+    <div id="step-password" class="hidden">
+      <label>Password</label>
+      <input type="password" id="passwordInput" autocomplete="current-password" />
+      <button class="btn-primary" id="btnLogin">Sign in</button>
+      <div class="login-msg" id="loginMsg"></div>
+      <button class="btn-link" id="btnForgot" style="margin-top:8px;">Forgot password?</button>
     </div>
 
-    <!-- STEP 2A: Enter existing password -->
-    <div id="stepPassword" style="display:none">
-      <button class="btn-back" onclick="goBack()">← Back</button>
-      <h1 class="login-title">Enter your password</h1>
-      <p class="step-user-label" id="passwordUserLabel"></p>
-      <div class="form-group">
-        <label for="passwordInput">Password</label>
-        <input type="password" id="passwordInput" placeholder="Enter your password" autocomplete="current-password"/>
-      </div>
-      <div id="passwordError" class="error-msg" style="display:none"></div>
-      <button class="btn-primary" onclick="doLogin()">
-        <span id="loginBtnText">Sign In</span>
-        <span id="loginSpinner" class="spinner" style="display:none"></span>
-      </button>
-      <button class="btn-link" onclick="showForgotFlow()">Forgot password?</button>
+    <!-- Step 3: Set password (first time) -->
+    <div id="step-setpw" class="hidden">
+      <label>Create a password</label>
+      <input type="password" id="newPwInput" />
+      <label>Confirm password</label>
+      <input type="password" id="newPw2Input" />
+      <button class="btn-primary" id="btnSetPw">Set password &amp; sign in</button>
+      <div class="login-msg" id="setMsg"></div>
     </div>
-
-    <!-- STEP 2B: First time — set new password -->
-    <div id="stepSetPassword" style="display:none">
-      <button class="btn-back" onclick="goBack()">← Back</button>
-      <h1 class="login-title">Create your password</h1>
-      <p class="step-user-label" id="setPasswordUserLabel"></p>
-      <div class="info-box">This is your first login. Please create a password to secure your account.</div>
-      <div class="form-group">
-        <label for="newPassword1">New Password</label>
-        <input type="password" id="newPassword1" placeholder="At least 6 characters"/>
-      </div>
-      <div class="form-group">
-        <label for="newPassword2">Confirm Password</label>
-        <input type="password" id="newPassword2" placeholder="Repeat your password"/>
-      </div>
-      <div id="setPasswordError" class="error-msg" style="display:none"></div>
-      <div id="setPasswordSuccess" class="success-msg" style="display:none"></div>
-      <button class="btn-primary" onclick="doSetPassword(false)">
-        <span id="setPasswordBtnText">Set Password & Sign In</span>
-        <span id="setPasswordSpinner" class="spinner" style="display:none"></span>
-      </button>
-    </div>
-
-    <!-- STEP 2C: Forgot / Change password -->
-    <div id="stepChangePassword" style="display:none">
-      <button class="btn-back" onclick="goBack()">← Back</button>
-      <h1 class="login-title">Reset your password</h1>
-      <p class="step-user-label" id="changePasswordUserLabel"></p>
-      <div class="form-group">
-        <label for="oldPassword">Current Password</label>
-        <input type="password" id="oldPassword" placeholder="Your current password"/>
-      </div>
-      <div class="form-group">
-        <label for="changePassword1">New Password</label>
-        <input type="password" id="changePassword1" placeholder="At least 6 characters"/>
-      </div>
-      <div class="form-group">
-        <label for="changePassword2">Confirm New Password</label>
-        <input type="password" id="changePassword2" placeholder="Repeat new password"/>
-      </div>
-      <div id="changePasswordError" class="error-msg" style="display:none"></div>
-      <div id="changePasswordSuccess" class="success-msg" style="display:none"></div>
-      <button class="btn-primary" onclick="doSetPassword(true)">
-        <span id="changeBtnText">Update Password</span>
-        <span id="changeSpinner" class="spinner" style="display:none"></span>
-      </button>
-    </div>
-
-    <p class="login-footer">Access is restricted to authorised personnel only.<br/>Contact your ZH if you need help.</p>
   </div>
 
   <script src="config.js"></script>
-  <script src="app.js"></script>
+  <script>
+    async function sha256(text) {
+      const buf = new TextEncoder().encode(text);
+      const hash = await crypto.subtle.digest('SHA-256', buf);
+      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    const $ = (id) => document.getElementById(id);
+    let currentGid = '';
+
+    function showStep(name) {
+      ['gid','password','setpw'].forEach(s => $('step-' + s).classList.toggle('hidden', s !== name));
+    }
+    function setMsg(elId, text, kind) {
+      const el = $(elId);
+      el.textContent = text || '';
+      el.className = 'login-msg ' + (kind || '');
+    }
+
+    $('btnContinue').addEventListener('click', async () => {
+      const gid = $('gidInput').value.trim();
+      if (!gid) { setMsg('gidMsg', 'Enter your User ID.', 'error'); return; }
+      setMsg('gidMsg', 'Checking…');
+      try {
+        const r = await fetch(API_URL + '?action=checkPassword&gid=' + encodeURIComponent(gid)).then(r => r.json());
+        if (!r.success) { setMsg('gidMsg', r.message || 'Unknown', 'error'); return; }
+        currentGid = gid;
+        setMsg('gidMsg', '');
+        showStep(r.hasPassword ? 'password' : 'setpw');
+      } catch (e) { setMsg('gidMsg', 'Connection error: ' + e.message, 'error'); }
+    });
+
+    $('btnLogin').addEventListener('click', async () => {
+      const pw = $('passwordInput').value;
+      if (!pw) { setMsg('loginMsg', 'Enter password.', 'error'); return; }
+      setMsg('loginMsg', 'Signing in…');
+      const hash = await sha256(pw);
+      try {
+        const r = await fetch(API_URL + '?action=login&gid=' + encodeURIComponent(currentGid) + '&password=' + hash).then(r => r.json());
+        if (!r.success) { setMsg('loginMsg', r.message || 'Failed', 'error'); return; }
+        sessionStorage.setItem('peUser', JSON.stringify(r.user));
+        // route MASTER to master.html
+        if (r.user.role === 'MASTER') location.href = 'master.html';
+        else location.href = 'dashboard.html';
+      } catch (e) { setMsg('loginMsg', 'Connection error: ' + e.message, 'error'); }
+    });
+
+    $('btnSetPw').addEventListener('click', async () => {
+      const p1 = $('newPwInput').value, p2 = $('newPw2Input').value;
+      if (!p1 || p1.length < 6) { setMsg('setMsg', 'Password must be at least 6 characters.', 'error'); return; }
+      if (p1 !== p2) { setMsg('setMsg', 'Passwords don\'t match.', 'error'); return; }
+      setMsg('setMsg', 'Setting password…');
+      const hash = await sha256(p1);
+      try {
+        const r = await fetch(API_URL + '?action=setPassword&gid=' + encodeURIComponent(currentGid) + '&newPassword=' + hash).then(r => r.json());
+        if (!r.success) { setMsg('setMsg', r.message || 'Failed', 'error'); return; }
+        // auto-login
+        const r2 = await fetch(API_URL + '?action=login&gid=' + encodeURIComponent(currentGid) + '&password=' + hash).then(r => r.json());
+        if (!r2.success) { setMsg('setMsg', r2.message || 'Failed', 'error'); return; }
+        sessionStorage.setItem('peUser', JSON.stringify(r2.user));
+        if (r2.user.role === 'MASTER') location.href = 'master.html';
+        else location.href = 'dashboard.html';
+      } catch (e) { setMsg('setMsg', 'Connection error: ' + e.message, 'error'); }
+    });
+
+    $('btnForgot').addEventListener('click', () => {
+      // Clear current hash so user can set a new one — admin must blank col E first
+      alert('Ask admin to clear the Password column (Col E) for your GID in the Users sheet. Then return here and use Continue → Create password.');
+    });
+  </script>
 </body>
 </html>
