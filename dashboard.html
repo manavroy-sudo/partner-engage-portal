@@ -38,9 +38,10 @@
 
   <div id="statusBar" class="status-bar hidden"></div>
 
+  <!-- ============ OVERALL PROJECT ============ -->
   <section class="tab-pane active" id="pane-overall">
     <h2 class="section-title">Overall Project Snapshot</h2>
-    <p class="section-sub">Live rollup of everything within your zone. All numbers come straight from the master sheet. <span id="zoneChips"></span></p>
+    <p class="section-sub">Live rollup of everything within your zone. <span id="zoneChips"></span></p>
 
     <div class="card-grid grid-3">
       <div class="kpi-card kpi-lg">
@@ -52,7 +53,7 @@
         </div>
       </div>
       <div class="kpi-card kpi-lg">
-        <div class="kpi-label">Business Generated (MTD)</div>
+        <div class="kpi-label">Business Generated (MTD May'26)</div>
         <div class="kpi-value pos" id="op-business">—</div>
         <div class="kpi-foot">
           <span class="pill" id="op-momPill">MoM: <b id="op-mom">—</b></span>
@@ -69,53 +70,59 @@
       </div>
     </div>
 
+    <!-- 4 KPI cards in 1 row — Change 1 fix applied here too -->
     <div class="card-grid grid-4">
       <div class="kpi-card">
         <div class="kpi-label">Max Potential</div>
         <div class="kpi-value" id="op-maxpot">—</div>
-        <div class="kpi-sub">Max month with ID (last 14m)</div>
+        <div class="kpi-sub">Best month × partners</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Overall Potential</div>
         <div class="kpi-value" id="op-overallpot">—</div>
-        <div class="kpi-sub">Across all platforms incl. ID</div>
+        <div class="kpi-sub">Across all platforms</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Target (May)</div>
-        <div class="kpi-value" id="op-target">—</div>
-        <div class="kpi-sub">Projection</div>
+        <div class="kpi-label">MTD (May'26)</div>
+        <div class="kpi-value pos" id="op-mtd">—</div>
+        <div class="kpi-sub" id="op-mtdSub">—</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Max-Pot Achievement</div>
-        <div class="kpi-value" id="op-maxAch">—</div>
-        <div class="kpi-sub">MTD ÷ Max Potential</div>
+        <div class="kpi-label">LMTD (Apr'26)</div>
+        <div class="kpi-value" id="op-lmtd">—</div>
+        <div class="kpi-sub" id="op-lmtdSub">—</div>
       </div>
     </div>
 
     <div class="card-grid grid-4">
-      <div class="kpi-card"><div class="kpi-label">Calls (total)</div><div class="kpi-value pos" id="op-calls">—</div></div>
-      <div class="kpi-card"><div class="kpi-label">Visits (total)</div><div class="kpi-value pos" id="op-visits">—</div></div>
-      <div class="kpi-card"><div class="kpi-label">Growth</div><div class="kpi-value pos" id="op-growth">—</div></div>
-      <div class="kpi-card"><div class="kpi-label">Degrowth</div><div class="kpi-value neg" id="op-degrowth">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Target (May)</div><div class="kpi-value" id="op-target">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Max-Pot Ach.</div><div class="kpi-value" id="op-maxAch">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Calls</div><div class="kpi-value pos" id="op-calls">—</div></div>
+      <div class="kpi-card"><div class="kpi-label">Visits</div><div class="kpi-value pos" id="op-visits">—</div></div>
     </div>
 
-    <div class="card-grid grid-2">
+    <!-- 3 charts in 1 row — Change 3 fix -->
+    <div class="card-grid grid-3">
       <div class="kpi-card chart-card">
-        <div class="kpi-label">Activity split</div>
-        <canvas id="chartActivity" height="170"></canvas>
+        <div class="kpi-label">Active vs Inactive</div>
+        <canvas id="chartActivity" height="160"></canvas>
       </div>
       <div class="kpi-card chart-card">
-        <div class="kpi-label">Connect split</div>
-        <canvas id="chartConnect" height="170"></canvas>
+        <div class="kpi-label">Connected vs Not Connected</div>
+        <canvas id="chartConnect" height="160"></canvas>
+      </div>
+      <div class="kpi-card chart-card">
+        <div class="kpi-label">Growth vs Degrowth</div>
+        <canvas id="chartGrowth" height="160"></canvas>
       </div>
     </div>
   </section>
 
+  <!-- ============ ALL PARTNERS ============ -->
   <section class="tab-pane" id="pane-all">
     <div class="kpi-row" id="kpiRow"></div>
-
     <div class="filter-bar">
-      <input type="text" id="fSearch" placeholder="Search name / GID / city / EmpID…" />
+      <input type="text" id="fSearch" placeholder="Search name / GID / city…" />
       <select id="fState"><option value="">All states</option></select>
       <select id="fCity"><option value="">All cities</option></select>
       <select id="fOwner"><option value="">All owners</option></select>
@@ -133,37 +140,35 @@
         <option value="growth">Growth</option><option value="degrowth">Degrowth</option>
       </select>
       <select id="fConnect">
-        <option value="">All connect status</option>
+        <option value="">All connect</option>
         <option value="connected">Connected</option><option value="notconnected">Not connected</option>
       </select>
       <select id="fBusiness">
         <option value="">All MTD ranges</option>
-        <option value="0">No business (₹0)</option>
+        <option value="0">₹0 (no business)</option>
         <option value="0-100000">&lt; ₹1L</option>
-        <option value="100000-500000">₹1L – ₹5L</option>
-        <option value="500000-1000000">₹5L – ₹10L</option>
+        <option value="100000-500000">₹1L–₹5L</option>
+        <option value="500000-1000000">₹5L–₹10L</option>
         <option value="1000000-">&gt; ₹10L</option>
       </select>
       <select id="fMaxPot">
         <option value="">All Max-Pot ranges</option>
         <option value="0-100000">&lt; ₹1L</option>
-        <option value="100000-500000">₹1L – ₹5L</option>
-        <option value="500000-1000000">₹5L – ₹10L</option>
+        <option value="100000-500000">₹1L–₹5L</option>
+        <option value="500000-1000000">₹5L–₹10L</option>
         <option value="1000000-">&gt; ₹10L</option>
       </select>
       <button class="btn-ghost" id="btnClearFilters">Clear</button>
       <button class="btn-primary" id="btnExportCsv">Export CSV</button>
     </div>
-
     <div class="filter-count" id="filterCount"></div>
-
     <div class="table-wrap">
       <table class="ptable" id="partnerTable">
         <thead>
           <tr>
             <th>Partner</th><th>City / State</th><th>Owner</th>
-            <th>Max Potential</th><th>Overall Potential</th>
-            <th>Target (May)</th><th>MTD (May'26)</th><th>LMTD (Apr'26)</th>
+            <th>Max Pot.</th><th>Overall Pot.</th>
+            <th>Target</th><th>MTD (May'26)</th><th>LMTD (Apr'26)</th>
             <th>MoM %</th><th>Growth/Degrowth</th>
             <th>Status</th><th>Connect</th>
             <th>Calls</th><th>Visits</th><th>Action</th>
@@ -174,6 +179,7 @@
     </div>
   </section>
 
+  <!-- ============ MY PARTNERS ============ -->
   <section class="tab-pane" id="pane-mine">
     <div class="kpi-row" id="kpiRowMine"></div>
     <div class="filter-bar">
@@ -190,12 +196,12 @@
       <button class="btn-ghost" id="btnClearMine">Clear</button>
     </div>
     <div class="table-wrap">
-      <table class="ptable" id="mineTable">
+      <table class="ptable">
         <thead>
           <tr>
             <th>Partner</th><th>City / State</th>
-            <th>Max Potential</th><th>Overall Potential</th>
-            <th>Target (May)</th><th>MTD</th><th>LMTD</th><th>MoM %</th>
+            <th>Max Pot.</th><th>Overall Pot.</th>
+            <th>Target</th><th>MTD</th><th>LMTD</th><th>MoM %</th>
             <th>Growth/Degrowth</th><th>Status</th><th>Connect</th>
             <th>Calls</th><th>Visits</th><th>Action</th>
           </tr>
@@ -205,14 +211,15 @@
     </div>
   </section>
 
+  <!-- ============ AM PERFORMANCE ============ -->
   <section class="tab-pane" id="pane-am">
     <h2 class="section-title">AM Performance</h2>
-    <p class="section-sub">Every AM in your zone. Click any card to drill into all partners under that AM.</p>
+    <p class="section-sub">Every AM in your zone. Click <b>Details</b> to drill into all partners.</p>
     <div class="filter-bar">
       <input type="text" id="fAmSearch" placeholder="Search AM name…" />
       <select id="fAmState"><option value="">All states</option></select>
       <select id="fAmSort">
-        <option value="mtd">Sort: MTD (high → low)</option>
+        <option value="mtd">Sort: MTD (high→low)</option>
         <option value="ach">Sort: Achievement %</option>
         <option value="partners">Sort: Partner count</option>
         <option value="active">Sort: Active partners</option>
@@ -220,14 +227,17 @@
       </select>
       <select id="fAmStatus">
         <option value="">All AMs</option>
-        <option value="active">Has active partners only</option>
-        <option value="inactive">Has inactive partners only</option>
+        <option value="active">Has active partners</option>
+        <option value="inactive">Has inactive partners</option>
       </select>
     </div>
-    <div class="team-grid" id="amGrid"></div>
+    <!-- am-grid-4 class makes 4 cards per row -->
+    <div class="team-grid am-grid-4" id="amGrid"></div>
   </section>
 
+  <!-- ============ TEAM PERFORMANCE ============ -->
   <section class="tab-pane" id="pane-team">
+    <h2 class="section-title">Team Performance</h2>
     <div class="filter-bar">
       <select id="fTeamRole">
         <option value="">All roles in my team</option>
@@ -240,6 +250,7 @@
     <div class="team-grid" id="teamGrid"></div>
   </section>
 
+  <!-- ============ PARTNER MODAL ============ -->
   <div class="modal hidden" id="partnerModal">
     <div class="modal-backdrop" id="modalBackdrop"></div>
     <div class="modal-window">
