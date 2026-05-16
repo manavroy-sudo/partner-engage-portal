@@ -232,7 +232,7 @@ function rowHtml(p){
     <td>${safe(p.city)}<div class="partner-sub">${safe(p.state)}</div></td>
     <td>${safe(p.ownerName)}<div class="partner-sub">${safe(p.ownerRole)}</div></td>
     <td>${fmtINR(p.maxPotential)}</td><td>${fmtINR(p.overallPotential)}</td><td>${fmtINR(p.target)}</td>
-    <td class="pos"><b>${fmtINR(p.currentMonth)}</b></td><td>${fmtINR(p.prevMonth)}</td>
+    <td style="color:#f59e0b;font-weight:700;">${fmtINR(p.ftd||0)}</td><td class="pos"><b>${fmtINR(p.currentMonth)}</b></td><td>${fmtINR(p.prevMonth)}</td>
     <td class="${mom>=0?'pos':'neg'}">${mom>=0?'+':''}${mom}%</td>
     <td><span class="${p.isGrowth?'trend-pos':'trend-neg'}">${p.isGrowth?'▲ Growth':'▼ Degrowth'}</span></td>
     <td>${p.isActive?'<span class="badge badge-green">Active</span>':'<span class="badge badge-red">Inactive</span>'}</td>
@@ -275,7 +275,7 @@ function renderMine(){
       <td><div class="partner-name">${safe(p.name)}</div><div class="partner-sub">${safe(p.gid)}</div></td>
       <td>${safe(p.city)}<div class="partner-sub">${safe(p.state)}</div></td>
       <td>${fmtINR(p.maxPotential)}</td><td>${fmtINR(p.overallPotential)}</td><td>${fmtINR(p.target)}</td>
-      <td class="pos"><b>${fmtINR(p.currentMonth)}</b></td><td>${fmtINR(p.prevMonth)}</td>
+      <td style="color:#f59e0b;font-weight:700;">${fmtINR(p.ftd||0)}</td><td class="pos"><b>${fmtINR(p.currentMonth)}</b></td><td>${fmtINR(p.prevMonth)}</td>
       <td class="${mom>=0?'pos':'neg'}">${mom>=0?'+':''}${mom}%</td>
       <td><span class="${p.isGrowth?'trend-pos':'trend-neg'}">${p.isGrowth?'▲ Growth':'▼ Degrowth'}</span></td>
       <td>${p.isActive?'<span class="badge badge-green">Active</span>':'<span class="badge badge-red">Inactive</span>'}</td>
@@ -320,7 +320,9 @@ function renderAm(){
         <button class="btn-sm openAmDrill" data-name="${safe(a.name)}">Details</button>
       </div>
       <div class="am-stats">
+        <div class="as" style="background:linear-gradient(135deg,#0f172a,#1e3a5f);"><div class="as-l" style="color:rgba(255,255,255,.5);">FTD</div><div class="as-v" style="color:#fbbf24;">${fmtINR(op.ftd||a.summary.totalFTD||0)}</div></div>
         <div class="as"><div class="as-l">MTD</div><div class="as-v pos">${fmtINR(op.businessGenerated)}</div></div>
+        <div class="as" style="background:#0f172a;"><div class="as-l" style="color:rgba(255,255,255,.5);">FTD</div><div class="as-v" style="color:#fbbf24;">${fmtINR(op.ftd||0)}</div></div>
         <div class="as"><div class="as-l">LMTD</div><div class="as-v">${fmtINR(op.lmtd||a.summary.prevMonthPremium)}</div></div>
         <div class="as"><div class="as-l">MoM</div><div class="as-v ${mom>=0?'pos':'neg'}">${mom>=0?'+':''}${mom}%</div></div>
         <div class="as"><div class="as-l">Ach.</div><div class="as-v ${op.achievementPct>=80?'pos':op.achievementPct>=40?'':'neg'}">${op.achievementPct}%</div></div>
@@ -375,7 +377,9 @@ function renderTeam(){
     return `<div class="team-card">
       <div class="team-card-head"><div><div class="team-name">${safe(t.name)}</div><div class="team-role">${safe(t.role)} • ${fmtInt(op.totalPartners)} partners</div></div><button class="btn-link openTeamMember" data-key="${safe(t.role+'|'+t.name)}">Details</button></div>
       <div class="team-stats">
+        <div class="ts" style="background:linear-gradient(135deg,#0f172a,#1e3a5f);"><div class="ts-l" style="color:rgba(255,255,255,.5);">FTD</div><div class="ts-v" style="color:#fbbf24;">${fmtINR(op.ftd||t.summary.totalFTD||0)}</div></div>
         <div class="ts"><div class="ts-l">MTD</div><div class="ts-v pos"><b>${fmtINR(op.businessGenerated)}</b></div></div>
+        <div class="ts" style="background:#0f172a;"><div class="ts-l" style="color:rgba(255,255,255,.5);">FTD</div><div class="ts-v" style="color:#fbbf24;">${fmtINR(op.ftd||0)}</div></div>
         <div class="ts"><div class="ts-l">LMTD</div><div class="ts-v">${fmtINR(op.lmtd||t.summary.prevMonthPremium)}</div></div>
         <div class="ts"><div class="ts-l">MoM</div><div class="ts-v ${mom>=0?'pos':'neg'}">${mom>=0?'+':''}${mom}%</div></div>
         <div class="ts"><div class="ts-l">Target</div><div class="ts-v">${fmtINR(op.target)}</div></div>
@@ -459,6 +463,8 @@ function openModal(gid){
       <div class="kpi-mini"><div><div class="kpi-mini-label">Max Potential</div><div class="kpi-mini-val pos">${fmtINR(p.maxPotential)}</div></div></div>
       <div class="kpi-mini"><div><div class="kpi-mini-label">Overall Potential</div><div class="kpi-mini-val ${p.overallPotential>0?'pos':''}">${fmtINR(p.overallPotential)}</div></div></div>
       <div class="kpi-mini"><div><div class="kpi-mini-label">Target (May)</div><div class="kpi-mini-val">${fmtINR(p.target)}</div></div></div>
+      <div class="kpi-mini" style="background:linear-gradient(135deg,#0f172a,#1e3a5f);"><div><div class="kpi-mini-label" style="color:rgba(255,255,255,.5);">FTD (Today)</div><div class="kpi-mini-val" style="color:#fbbf24;"><b>${fmtINR(p.ftd||0)}</b></div></div></div>
+      <div class="kpi-mini"><div><div class="kpi-mini-label">FTD</div><div class="kpi-mini-val" style="color:#fbbf24;">${fmtINR(p.ftd||0)}</div></div></div>
       <div class="kpi-mini"><div><div class="kpi-mini-label">MTD (May'26)</div><div class="kpi-mini-val ${p.currentMonth>=p.prevMonth?'pos':'neg'}"><b>${fmtINR(p.currentMonth)}</b></div></div></div>
       <div class="kpi-mini"><div><div class="kpi-mini-label">LMTD (Apr'26)</div><div class="kpi-mini-val">${fmtINR(p.prevMonth)}</div></div></div>
       <div class="kpi-mini"><div><div class="kpi-mini-label">MoM</div><div class="kpi-mini-val ${mom>=0?'pos':'neg'}">${mom>=0?'+':''}${mom}%</div></div></div>

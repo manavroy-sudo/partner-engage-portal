@@ -162,6 +162,7 @@ function renderZoneComparison(){
         <div class="zone-bar"><div class="zone-bar-fill" style="width:${fillPct}%;"></div></div>
       </div>
       <div class="zone-kpis">
+        <div class="zk" style="background:#0f172a;"><div class="zk-l" style="color:rgba(255,255,255,.5);">FTD</div><div class="zk-v" style="color:#fbbf24;">${fmtINR(s.totalFTD||0)}</div></div>
         <div class="zk"><div class="zk-l">MTD</div><div class="zk-v pos"><b>${fmtINR(s.currentMonthPremium)}</b></div></div>
         <div class="zk"><div class="zk-l">LMTD</div><div class="zk-v">${fmtINR(s.prevMonthPremium)}</div></div>
         <div class="zk"><div class="zk-l">MoM</div><div class="zk-v ${s.momPct>=0?'pos':'neg'}">${s.momPct>=0?'+':''}${s.momPct}%</div></div>
@@ -242,6 +243,7 @@ function renderRoles(){
     return `<div class="team-card">
       <div class="team-card-head"><div><div class="team-name">${safe(p.name)}</div><div class="team-role">${role} • ${safe(p.zone)} • ${fmtInt(s.totalPartners)} partners</div></div></div>
       <div class="team-stats">
+        <div class="ts" style="background:#0f172a;"><div class="ts-l" style="color:rgba(255,255,255,.5);">FTD</div><div class="ts-v" style="color:#fbbf24;">${fmtINR(s.totalFTD||0)}</div></div>
         <div class="ts"><div class="ts-l">MTD</div><div class="ts-v pos"><b>${fmtINR(s.currentMonthPremium)}</b></div></div>
         <div class="ts"><div class="ts-l">LMTD</div><div class="ts-v">${fmtINR(s.prevMonthPremium)}</div></div>
         <div class="ts"><div class="ts-l">MoM</div><div class="ts-v ${mom>=0?'pos':'neg'}">${mom>=0?'+':''}${mom}%</div></div>
