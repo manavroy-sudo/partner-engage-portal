@@ -1,159 +1,174 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Master Dashboard — AM and Above Focused Partners</title>
-  <link rel="stylesheet" href="style.css"/>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Master Dashboard — AM and Above Focused Partners</title>
+<link rel="stylesheet" href="style.css"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-
-  <header class="topbar">
-    <div class="topbar-left">
-      <div class="brand">
-        <span class="brand-mark master-mark">★</span>
-        <div>
-          <div class="brand-name">AM and Above Focused Partners</div>
-          <div class="brand-sub">Central Team — Master View</div>
-        </div>
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="brand">
+      <span class="brand-mark master-mark">★</span>
+      <div>
+        <div class="brand-name">AM and Above Focused Partners</div>
+        <div class="brand-sub">Central Team — Master View</div>
       </div>
     </div>
-    <div class="topbar-right">
-      <div class="user-chip">
-        <div class="user-chip-name" id="userName">—</div>
-        <div class="user-chip-role">MASTER</div>
-      </div>
-      <button class="btn-ghost" id="btnLogout" style="color:#fff;border-color:rgba(255,255,255,.2);">Logout</button>
+  </div>
+  <div class="topbar-right">
+    <div class="user-chip">
+      <div class="user-chip-name" id="userName">—</div>
+      <div class="user-chip-role">MASTER</div>
     </div>
-  </header>
+    <button class="btn-ghost" id="btnLogout" style="color:#fff;border-color:rgba(255,255,255,.2);">Logout</button>
+  </div>
+</header>
 
-  <nav class="tabs">
-    <button class="tab active" data-tab="india">Pan-India</button>
-    <button class="tab" data-tab="zones">Zone Comparison</button>
-    <button class="tab" data-tab="roles">Role Performance</button>
-    <button class="tab" data-tab="states">State Ranking</button>
-    <button class="tab" data-tab="runrate">Daily Run Rate</button>
-    <button class="tab" data-tab="logins">Login Activity</button>
-  </nav>
+<nav class="tabs">
+  <button class="tab active" data-tab="india">Pan-India</button>
+  <button class="tab" data-tab="zones">Zone Comparison</button>
+  <button class="tab" data-tab="roles">Role Performance</button>
+  <button class="tab" data-tab="states">State Ranking</button>
+  <button class="tab" data-tab="logins">Login Activity</button>
+</nav>
+<!-- REMOVED: Daily Run Rate tab from master nav -->
 
-  <div id="statusBar" class="status-bar hidden"></div>
+<div id="statusBar" class="status-bar hidden"></div>
 
-  <!-- ======= PAN-INDIA ======= -->
-  <section class="tab-pane active" id="pane-india">
-    <h2 class="section-title">Pan-India Summary</h2>
-    <p class="section-sub">Complete organisation. All zones, all roles, all 2700+ partners. Tele-RM excluded.</p>
+<!-- ======= PAN-INDIA ======= -->
+<section class="tab-pane active" id="pane-india">
+  <h2 class="section-title">Pan-India Summary</h2>
+  <p class="section-sub">Complete organisation — 6 zones including TELE_RM. All roles. All partners.</p>
 
-    <div class="card-grid grid-3">
-      <div class="kpi-card kpi-lg accent-blue">
-        <div class="kpi-label">Total Partners (All Zones)</div>
-        <div class="kpi-value" id="m-totalPartners">—</div>
-        <div class="kpi-foot"><span class="pill pill-green">Active: <b id="m-active">—</b></span><span class="pill pill-red">Inactive: <b id="m-inactive">—</b></span></div>
-      </div>
-      <div class="kpi-card kpi-lg accent-green">
-        <div class="kpi-label">Business Generated MTD (May'26)</div>
-        <div class="kpi-value pos" id="m-business">—</div>
-        <div class="kpi-foot"><span class="pill" id="m-momPill">MoM: <b id="m-mom">—</b></span><span class="pill pill-blue">Ach: <b id="m-ach">—</b></span></div>
-      </div>
-      <div class="kpi-card kpi-lg accent-amber">
-        <div class="kpi-label">Engagement</div>
-        <div class="kpi-value" id="m-connected">—</div>
-        <div class="kpi-foot"><span class="pill pill-green">Connected: <b id="m-conn">—</b></span><span class="pill pill-amber">Not: <b id="m-notconn">—</b></span></div>
+  <div class="card-grid grid-3">
+    <div class="kpi-card kpi-lg accent-blue">
+      <div class="kpi-label">Total Partners (All Zones incl. TELE_RM)</div>
+      <div class="kpi-value" id="m-totalPartners">—</div>
+      <div class="kpi-foot">
+        <span class="pill pill-green">Active: <b id="m-active">—</b></span>
+        <span class="pill pill-red">Inactive: <b id="m-inactive">—</b></span>
       </div>
     </div>
-
-    <div class="card-grid grid-6">
-      <div class="kpi-card accent-green"><div class="kpi-label">MTD (May'26)</div><div class="kpi-value pos" id="m-mtd">—</div><div class="kpi-sub" id="m-mtdSub">—</div></div>
-      <div class="kpi-card"><div class="kpi-label">LMTD (Apr'26)</div><div class="kpi-value" id="m-lmtd">—</div></div>
-      <div class="kpi-card accent-purple"><div class="kpi-label">Max Potential</div><div class="kpi-value" id="m-maxpot">—</div></div>
-      <div class="kpi-card"><div class="kpi-label">Overall Potential</div><div class="kpi-value" id="m-overallpot">—</div></div>
-      <div class="kpi-card"><div class="kpi-label">Target (May)</div><div class="kpi-value" id="m-target">—</div></div>
-      <div class="kpi-card rr-card"><div class="kpi-label">Daily Run Rate</div><div class="kpi-value" id="m-runrate">—</div><div class="kpi-sub">Today − Yesterday</div></div>
+    <div class="kpi-card kpi-lg accent-green">
+      <div class="kpi-label">Business Generated MTD (May'26)</div>
+      <!-- value color set dynamically by master.js -->
+      <div class="kpi-value" id="m-business">—</div>
+      <div class="kpi-foot">
+        <span class="pill" id="m-momPill">MoM: <b id="m-mom">—</b></span>
+        <span class="pill pill-blue">Ach: <b id="m-ach">—</b></span>
+      </div>
     </div>
-
-    <div class="card-grid grid-4">
-      <div class="kpi-card accent-green"><div class="kpi-label">Calls (Total)</div><div class="kpi-value pos" id="m-calls">—</div></div>
-      <div class="kpi-card accent-blue"><div class="kpi-label">Visits (Total)</div><div class="kpi-value pos" id="m-visits">—</div></div>
-      <div class="kpi-card accent-green"><div class="kpi-label">Growth Partners</div><div class="kpi-value pos" id="m-growth">—</div></div>
-      <div class="kpi-card accent-red"><div class="kpi-label">Degrowth Partners</div><div class="kpi-value neg" id="m-degrowth">—</div></div>
+    <div class="kpi-card kpi-lg accent-amber">
+      <div class="kpi-label">Engagement</div>
+      <div class="kpi-value" id="m-connected">—</div>
+      <div class="kpi-foot">
+        <span class="pill pill-green">Connected: <b id="m-conn">—</b></span>
+        <span class="pill pill-amber">Not: <b id="m-notconn">—</b></span>
+      </div>
     </div>
-
-    <div class="card-grid grid-2">
-      <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Zone-wise MTD Business</div><canvas id="chartZoneMtd" height="200"></canvas></div>
-      <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">MTD vs LMTD by Zone</div><canvas id="chartZoneMtdLmtd" height="200"></canvas></div>
-    </div>
-    <div class="card-grid grid-3">
-      <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Active vs Inactive</div><canvas id="chartMActivity" height="160"></canvas></div>
-      <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Connected vs Not</div><canvas id="chartMConnect" height="160"></canvas></div>
-      <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Growth vs Degrowth</div><canvas id="chartMGrowth" height="160"></canvas></div>
-    </div>
-  </section>
-
-  <!-- ======= ZONE COMPARISON ======= -->
-  <section class="tab-pane" id="pane-zones">
-    <h2 class="section-title">Zone Performance Comparison</h2>
-    <p class="section-sub">All 5 zones ranked by MTD. Click "View Team" to drill into ZH → RH → SH → RM → AM.</p>
-    <div id="zoneBestBanner" style="margin-bottom:14px;"></div>
-    <div class="zone-compare-grid" id="zoneCompareGrid"></div>
-    <div class="card-grid grid-2" style="margin-top:14px;">
-      <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Zone Max Potential</div><canvas id="chartZoneMaxPot" height="180"></canvas></div>
-      <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Zone Active Partners</div><canvas id="chartZoneActive" height="180"></canvas></div>
-    </div>
-  </section>
-
-  <!-- ======= ROLE PERFORMANCE ======= -->
-  <section class="tab-pane" id="pane-roles">
-    <h2 class="section-title">Role-Level Performance</h2>
-    <div class="filter-bar">
-      <select id="fRole"><option value="ZH">ZH</option><option value="RH">RH</option><option value="SH">SH</option><option value="RM">RM</option><option value="AM" selected>AM</option></select>
-      <input type="text" id="fRoleSearch" placeholder="Search name…"/>
-      <select id="fRoleSort"><option value="mtd">Sort: MTD High→Low</option><option value="ach">Achievement%</option><option value="partners">Partner count</option><option value="name">Name A–Z</option></select>
-    </div>
-    <div class="team-grid" id="roleGrid"></div>
-  </section>
-
-  <!-- ======= STATE RANKING ======= -->
-  <section class="tab-pane" id="pane-states">
-    <h2 class="section-title">State Performance Ranking</h2>
-    <div class="table-wrap">
-      <table class="ptable">
-        <thead><tr><th>Rank</th><th>State</th><th>Zone</th><th>Partners</th><th>Max Pot.</th><th>Overall Pot.</th><th>Target</th><th>MTD</th><th>LMTD</th><th>MoM%</th><th>Ach%</th><th>Active</th><th>Connected</th><th>Engagement%</th><th>Calls</th><th>Visits</th></tr></thead>
-        <tbody id="stateTbody"></tbody>
-      </table>
-    </div>
-  </section>
-
-  <!-- ======= DAILY RUN RATE ======= -->
-  <section class="tab-pane" id="pane-runrate">
-    <h2 class="section-title">Daily Run Rate — Organisation Wide</h2>
-    <p class="section-sub">Today MTD − Yesterday MTD. Historical tracking from 12th onwards.</p>
-    <div class="runrate-strip" id="masterRrStrip">
-      <div class="rr-strip-card"><div class="rr-strip-label">Today's Run Rate</div><div class="rr-strip-val" id="m-rr-today">—</div><div class="rr-strip-sub">Added since yesterday</div></div>
-      <div class="rr-strip-card"><div class="rr-strip-label">Today Total MTD</div><div class="rr-strip-val" id="m-rr-mtd">—</div></div>
-      <div class="rr-strip-card"><div class="rr-strip-label">Yesterday MTD</div><div class="rr-strip-val" id="m-rr-lmtd" style="color:#94a3b8;">—</div></div>
-    </div>
-    <div class="card-grid grid-2">
-      <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Organisation MTD Trend</div><canvas id="mChartDailyTrend" height="200"></canvas></div>
-      <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Daily Run Rate Trend</div><canvas id="mChartRunRate" height="200"></canvas></div>
-    </div>
-    <div class="chart-card" style="margin-top:12px;"><div class="kpi-label" style="margin-bottom:8px;">Zone-wise Daily MTD Trend</div><canvas id="mChartZoneTrend" height="200"></canvas></div>
-  </section>
-
-  <!-- ======= LOGINS ======= -->
-  <section class="tab-pane" id="pane-logins">
-    <h2 class="section-title">Login Activity</h2>
-    <div class="filter-bar"><input type="text" id="fLoginSearch" placeholder="Search user…"/><button class="btn-ghost" id="btnRefreshLogins">Refresh</button></div>
-    <div class="kpi-row"><div class="kpi-mini"><div><div class="kpi-mini-label">Total Logins</div><div class="kpi-mini-val" id="loginTotal">—</div></div></div><div class="kpi-mini"><div><div class="kpi-mini-label">Unique Users</div><div class="kpi-mini-val" id="loginUsers">—</div></div></div></div>
-    <div class="table-wrap"><table class="ptable"><thead><tr><th>User</th><th>GID</th><th>Role</th><th>Zone</th><th>Logins</th><th>Last Login</th></tr></thead><tbody id="loginsTbody"></tbody></table></div>
-  </section>
-
-  <!-- ======= ZONE DRILL MODAL ======= -->
-  <div class="modal hidden" id="drillModal">
-    <div class="modal-backdrop" id="modalBackdrop"></div>
-    <div class="modal-window large"><button class="modal-close" id="modalClose">×</button><div id="modalBody"></div></div>
   </div>
 
-  <script src="config.js"></script>
-  <script src="master.js"></script>
+  <div class="card-grid grid-6">
+    <div class="kpi-card accent-green"><div class="kpi-label">MTD (May'26)</div><div class="kpi-value" id="m-mtd">—</div><div class="kpi-sub" id="m-mtdSub">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">LMTD (Apr'26)</div><div class="kpi-value" id="m-lmtd">—</div></div>
+    <div class="kpi-card accent-purple"><div class="kpi-label">Max Potential</div><div class="kpi-value" id="m-maxpot">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Overall Potential</div><div class="kpi-value" id="m-overallpot">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">Target (May)</div><div class="kpi-value" id="m-target">—</div></div>
+    <div class="kpi-card accent-blue"><div class="kpi-label">Max-Pot Ach.</div><div class="kpi-value" id="m-maxAch">—</div><div class="kpi-sub">MTD ÷ Max Pot</div></div>
+  </div>
+
+  <div class="card-grid grid-4">
+    <div class="kpi-card accent-green"><div class="kpi-label">Calls (Total)</div><div class="kpi-value pos" id="m-calls">—</div></div>
+    <div class="kpi-card accent-blue"><div class="kpi-label">Visits (Total)</div><div class="kpi-value pos" id="m-visits">—</div></div>
+    <div class="kpi-card accent-green"><div class="kpi-label">Growth Partners</div><div class="kpi-value" id="m-growth">—</div></div>
+    <div class="kpi-card accent-red"><div class="kpi-label">Degrowth Partners</div><div class="kpi-value" id="m-degrowth">—</div></div>
+  </div>
+
+  <div class="card-grid grid-2">
+    <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Zone-wise MTD Business (6 zones)</div><canvas id="chartZoneMtd" height="200"></canvas></div>
+    <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">MTD vs LMTD by Zone</div><canvas id="chartZoneMtdLmtd" height="200"></canvas></div>
+  </div>
+  <div class="card-grid grid-3">
+    <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Active vs Inactive</div><canvas id="chartMActivity" height="160"></canvas></div>
+    <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Connected vs Not</div><canvas id="chartMConnect" height="160"></canvas></div>
+    <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Growth vs Degrowth</div><canvas id="chartMGrowth" height="160"></canvas></div>
+  </div>
+</section>
+
+<!-- ======= ZONE COMPARISON (now 6 zones) ======= -->
+<section class="tab-pane" id="pane-zones">
+  <h2 class="section-title">Zone Performance Comparison</h2>
+  <p class="section-sub">All <b>6 zones</b> ranked by MTD — North, East, South, West, RON, and TELE_RM. Click "View Team" to drill into role hierarchy.</p>
+  <div id="zoneBestBanner" style="margin-bottom:14px;"></div>
+  <div class="zone-compare-grid" id="zoneCompareGrid"></div>
+  <div class="card-grid grid-2" style="margin-top:14px;">
+    <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Zone Max Potential (6 zones)</div><canvas id="chartZoneMaxPot" height="180"></canvas></div>
+    <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Zone Active Partners</div><canvas id="chartZoneActive" height="180"></canvas></div>
+  </div>
+</section>
+
+<!-- ======= ROLE PERFORMANCE ======= -->
+<section class="tab-pane" id="pane-roles">
+  <h2 class="section-title">Role-Level Performance</h2>
+  <div class="filter-bar">
+    <select id="fRole"><option value="ZH">ZH</option><option value="RH">RH</option><option value="SH">SH</option><option value="RM">RM</option><option value="AM" selected>AM</option></select>
+    <input type="text" id="fRoleSearch" placeholder="Search name…"/>
+    <select id="fRoleSort"><option value="mtd">Sort: MTD High→Low</option><option value="ach">Achievement%</option><option value="partners">Partner count</option><option value="name">Name A–Z</option></select>
+  </div>
+  <div class="team-grid" id="roleGrid"></div>
+</section>
+
+<!-- ======= STATE RANKING ======= -->
+<section class="tab-pane" id="pane-states">
+  <h2 class="section-title">State Performance Ranking</h2>
+  <div class="table-wrap">
+    <table class="ptable">
+      <thead><tr>
+        <th>Rank</th><th>State</th><th>Zone</th><th>Partners</th>
+        <th>Max Pot.</th><th>Overall Pot.</th><th>Target</th>
+        <th>MTD</th><th>LMTD</th><th>MoM%</th><th>Ach%</th>
+        <th>Active</th><th>Connected</th><th>Engagement%</th>
+        <th>Calls</th><th>Visits</th>
+      </tr></thead>
+      <tbody id="stateTbody"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- REMOVED: Daily Run Rate tab from master (DRR removed) -->
+
+<!-- ======= LOGINS ======= -->
+<section class="tab-pane" id="pane-logins">
+  <h2 class="section-title">Login Activity</h2>
+  <div class="filter-bar">
+    <input type="text" id="fLoginSearch" placeholder="Search user…"/>
+    <button class="btn-ghost" id="btnRefreshLogins">Refresh</button>
+  </div>
+  <div class="kpi-row">
+    <div class="kpi-mini"><div><div class="kpi-mini-label">Total Logins</div><div class="kpi-mini-val" id="loginTotal">—</div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">Unique Users</div><div class="kpi-mini-val" id="loginUsers">—</div></div></div>
+  </div>
+  <div class="table-wrap">
+    <table class="ptable">
+      <thead><tr><th>User</th><th>GID</th><th>Role</th><th>Zone</th><th>Logins</th><th>Last Login</th></tr></thead>
+      <tbody id="loginsTbody"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ======= ZONE DRILL MODAL ======= -->
+<div class="modal hidden" id="drillModal">
+  <div class="modal-backdrop" id="modalBackdrop"></div>
+  <div class="modal-window large">
+    <button class="modal-close" id="modalClose">×</button>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="master.js"></script>
 </body>
 </html>
