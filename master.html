@@ -1,170 +1,258 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Master Dashboard — AM and Above Focused Partners</title>
-<link rel="stylesheet" href="style.css"/>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Partner Engage — Master Dashboard</title>
+  <link rel="stylesheet" href="style.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    /* ── Master-page scoped overrides ───────────────────────────── */
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; }
+
+    /* Header */
+    .master-header {
+      background: linear-gradient(135deg, #1a2a6c, #b21f1f);
+      color: #fff;
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .master-header h1 { margin: 0; font-size: 1.4rem; font-weight: 700; }
+    .master-header .hdr-sub { font-size: .8rem; opacity: .8; margin-top: 3px; }
+    .logout-btn {
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.4);
+      color: #fff; padding: 6px 18px; border-radius: 6px;
+      cursor: pointer; font-size: .85rem;
+    }
+    .logout-btn:hover { background: rgba(255,255,255,.25); }
+
+    /* Tab nav */
+    .tab-nav {
+      display: flex; gap: 0;
+      background: #fff;
+      border-bottom: 2px solid #e2e8f0;
+      padding: 0 24px;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      padding: 14px 22px;
+      background: none; border: none;
+      font-size: .88rem; font-weight: 600;
+      color: #64748b; cursor: pointer;
+      border-bottom: 3px solid transparent;
+      white-space: nowrap; transition: all .2s;
+    }
+    .tab-btn:hover { color: #1e40af; }
+    .tab-btn.active { color: #1e40af; border-bottom-color: #1e40af; }
+
+    /* Tab content */
+    .tab-pane { display: none; padding: 28px 32px; }
+    .tab-pane.active { display: block; }
+
+    /* KPI cards */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(170px,1fr)); gap: 16px; margin-bottom: 28px; }
+    .kpi-card {
+      background: #fff; border-radius: 12px;
+      padding: 18px 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.07);
+    }
+    .kpi-card .kpi-label { font-size: .75rem; color: #64748b; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+    .kpi-card .kpi-value { font-size: 1.7rem; font-weight: 700; color: #1e293b; }
+    .kpi-card .kpi-sub   { font-size: .78rem; color: #94a3b8; margin-top: 4px; }
+    .kpi-card.green .kpi-value { color: #16a34a; }
+    .kpi-card.red   .kpi-value { color: #dc2626; }
+    .kpi-card.blue  .kpi-value { color: #2563eb; }
+    .kpi-card.amber .kpi-value { color: #d97706; }
+
+    /* Section titles */
+    .section-title {
+      font-size: 1rem; font-weight: 700; color: #1e293b;
+      margin: 24px 0 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .section-title::after {
+      content: ''; flex: 1;
+      height: 1px; background: #e2e8f0;
+    }
+
+    /* Tables */
+    .data-table-wrap { overflow-x: auto; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+    .data-table { width: 100%; border-collapse: collapse; background: #fff; }
+    .data-table th {
+      background: #f8fafc; padding: 11px 14px;
+      text-align: left; font-size: .8rem;
+      font-weight: 700; color: #475569;
+      border-bottom: 2px solid #e2e8f0;
+      white-space: nowrap;
+    }
+    .data-table td {
+      padding: 10px 14px; font-size: .85rem;
+      color: #334155; border-bottom: 1px solid #f1f5f9;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: #f8fafc; }
+
+    /* Progress bar */
+    .prog-wrap { background: #e2e8f0; border-radius: 20px; height: 8px; min-width: 80px; }
+    .prog-fill  { height: 8px; border-radius: 20px; transition: width .4s; }
+    .prog-fill.called  { background: #2563eb; }
+    .prog-fill.visited { background: #16a34a; }
+    .prog-fill.amber   { background: #d97706; }
+
+    /* Zone cards grid */
+    .zone-cards { display: grid; grid-template-columns: repeat(auto-fill,minmax(280px,1fr)); gap: 18px; margin-bottom: 28px; }
+    .zone-card {
+      background: #fff; border-radius: 14px; padding: 20px 22px;
+      box-shadow: 0 1px 5px rgba(0,0,0,.08);
+      border-top: 4px solid #2563eb;
+    }
+    .zone-card.north { border-top-color: #2563eb; }
+    .zone-card.south { border-top-color: #16a34a; }
+    .zone-card.east  { border-top-color: #9333ea; }
+    .zone-card.west  { border-top-color: #ea580c; }
+    .zone-card.ron   { border-top-color: #0891b2; }
+    .zone-card.tele  { border-top-color: #be185d; }
+    .zone-card h3 { margin: 0 0 14px; font-size: .95rem; color: #1e293b; }
+    .zone-card .zh-tag { font-size: .72rem; color: #64748b; margin-top: -10px; margin-bottom: 12px; }
+    .zone-stat-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
+    .zone-stat-row .zsr-label { font-size: .78rem; color: #64748b; }
+    .zone-stat-row .zsr-val   { font-size: .85rem; font-weight: 700; color: #1e293b; }
+
+    /* Owner role selector */
+    .role-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .role-tab-btn {
+      padding: 7px 18px; border-radius: 20px;
+      border: 2px solid #e2e8f0; background: #fff;
+      font-size: .82rem; font-weight: 600; color: #64748b;
+      cursor: pointer; transition: all .2s;
+    }
+    .role-tab-btn:hover  { border-color: #93c5fd; color: #1e40af; }
+    .role-tab-btn.active { border-color: #2563eb; background: #2563eb; color: #fff; }
+
+    /* Loader */
+    .tab-loader {
+      display: flex; align-items: center; justify-content: center;
+      height: 200px; color: #94a3b8; font-size: 1rem;
+      gap: 10px;
+    }
+    .spinner {
+      width: 24px; height: 24px; border: 3px solid #e2e8f0;
+      border-top-color: #2563eb; border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Charts */
+    .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
+    .chart-card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+    .chart-card h4 { margin: 0 0 14px; font-size: .9rem; color: #1e293b; }
+    @media(max-width:768px){ .chart-grid{grid-template-columns:1fr;} .zone-cards{grid-template-columns:1fr;} }
+
+    /* Rank badge */
+    .rank { display:inline-flex; width:22px; height:22px; border-radius:50%; align-items:center; justify-content:center; font-size:.72rem; font-weight:700; }
+    .rank.r1{background:#fbbf24;color:#fff;} .rank.r2{background:#94a3b8;color:#fff;} .rank.r3{background:#d97706;color:#fff;} .rank.rn{background:#e2e8f0;color:#475569;}
+
+    /* % badge */
+    .pct-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:.75rem; font-weight:700; }
+    .pct-badge.high   { background:#dcfce7; color:#16a34a; }
+    .pct-badge.medium { background:#fef9c3; color:#854d0e; }
+    .pct-badge.low    { background:#fee2e2; color:#dc2626; }
+  </style>
 </head>
 <body>
-<header class="topbar">
-  <div class="topbar-left">
-    <div class="brand">
-      <span class="brand-mark master-mark">★</span>
-      <div>
-        <div class="brand-name">AM and Above Focused Partners</div>
-        <div class="brand-sub">Central Team — Master View</div>
-      </div>
-    </div>
+
+<!-- ═══════════════ HEADER ════════════════════════════════════════ -->
+<div class="master-header">
+  <div>
+    <h1>🏢 Partner Engage — National Dashboard</h1>
+    <div class="hdr-sub">Central Team · All Zones · Read-Only View</div>
   </div>
-  <div class="topbar-right">
-    <div class="user-chip">
-      <div class="user-chip-name" id="userName">—</div>
-      <div class="user-chip-role">MASTER</div>
-    </div>
-    <button class="btn-ghost" id="btnLogout" style="color:#fff;border-color:rgba(255,255,255,.2);">Logout</button>
+  <button class="logout-btn" onclick="logout()">Logout</button>
+</div>
+
+<!-- ═══════════════ TAB NAVIGATION ═══════════════════════════════ -->
+<div class="tab-nav">
+  <button class="tab-btn active" data-tab="pan-india">🌐 Pan-India Overview</button>
+  <button class="tab-btn" data-tab="zone-perf">📍 Zone Performance</button>
+  <button class="tab-btn" data-tab="callvisit">📞 Call & Visit Tracker</button>
+  <button class="tab-btn" data-tab="role-perf">👥 Role Performance</button>
+  <button class="tab-btn" data-tab="state-perf">🗺️ State Performance</button>
+  <button class="tab-btn" data-tab="login-log">🔐 Login Activity</button>
+</div>
+
+<!-- ═══════════════ PAN-INDIA OVERVIEW ═══════════════════════════ -->
+<div class="tab-pane active" id="tab-pan-india">
+  <div class="kpi-grid" id="pan-kpis">
+    <div class="tab-loader"><div class="spinner"></div> Loading…</div>
   </div>
-</header>
+  <div class="chart-grid">
+    <div class="chart-card"><h4>📊 Zone-wise MTD</h4><canvas id="chartZoneMtd"></canvas></div>
+    <div class="chart-card"><h4>✅ Active vs Inactive by Zone</h4><canvas id="chartZoneActive"></canvas></div>
+    <div class="chart-card"><h4>💰 Max Potential by Zone</h4><canvas id="chartZonePot"></canvas></div>
+    <div class="chart-card"><h4>📈 MTD vs LMTD</h4><canvas id="chartMtdLmtd"></canvas></div>
+  </div>
+</div>
 
-<nav class="tabs">
-  <button class="tab active" data-tab="india">Pan-India</button>
-  <button class="tab" data-tab="zones">Zone Comparison</button>
-  <button class="tab" data-tab="roles">Role Performance</button>
-  <button class="tab" data-tab="states">State Ranking</button>
-  <button class="tab" data-tab="logins">Login Activity</button>
-</nav>
-<!-- REMOVED: Daily Run Rate tab from master nav -->
+<!-- ═══════════════ ZONE PERFORMANCE ═══════════════════════════════ -->
+<div class="tab-pane" id="tab-zone-perf">
+  <div id="zone-perf-content">
+    <div class="tab-loader"><div class="spinner"></div> Loading zone data…</div>
+  </div>
+</div>
 
-<div id="statusBar" class="status-bar hidden"></div>
-
-<!-- ======= PAN-INDIA ======= -->
-<section class="tab-pane active" id="pane-india">
-  <h2 class="section-title">Pan-India Summary</h2>
-  <p class="section-sub">Complete organisation — 6 zones including TELE_RM. All roles. All partners.</p>
-
-  <div class="card-grid grid-3">
-    <div class="kpi-card kpi-lg accent-blue">
-      <div class="kpi-label">Total Partners (All Zones incl. TELE_RM)</div>
-      <div class="kpi-value" id="m-totalPartners">—</div>
-      <div class="kpi-foot">
-        <span class="pill pill-green">Active: <b id="m-active">—</b></span>
-        <span class="pill pill-red">Inactive: <b id="m-inactive">—</b></span>
-      </div>
-    </div>
-    <div class="kpi-card kpi-lg accent-green">
-      <div class="kpi-label">Business Generated MTD (May'26)</div>
-      <!-- value color set dynamically by master.js -->
-      <div class="kpi-value" id="m-business">—</div>
-      <div class="kpi-foot">
-        <span class="pill" id="m-momPill">MoM: <b id="m-mom">—</b></span>
-        <span class="pill pill-blue">Ach: <b id="m-ach">—</b></span>
-      </div>
-    </div>
-    <div class="kpi-card kpi-lg accent-amber">
-      <div class="kpi-label">Engagement</div>
-      <div class="kpi-value" id="m-connected">—</div>
-      <div class="kpi-foot">
-        <span class="pill pill-green">Connected: <b id="m-conn">—</b></span>
-        <span class="pill pill-amber">Not: <b id="m-notconn">—</b></span>
-      </div>
-    </div>
+<!-- ═══════════════ CALL & VISIT TRACKER (NEW v9) ════════════════ -->
+<div class="tab-pane" id="tab-callvisit">
+  <!-- Overall KPI Row -->
+  <div class="kpi-grid" id="cv-kpi-row">
+    <div class="tab-loader"><div class="spinner"></div> Loading call & visit data…</div>
   </div>
 
-  <div class="card-grid grid-6">
-    <div class="kpi-card accent-green"><div class="kpi-label">MTD (May'26)</div><div class="kpi-value" id="m-mtd">—</div><div class="kpi-sub" id="m-mtdSub">—</div></div>
-    <div class="kpi-card"><div class="kpi-label">LMTD (Apr'26)</div><div class="kpi-value" id="m-lmtd">—</div></div>
-    <div class="kpi-card accent-purple"><div class="kpi-label">Max Potential</div><div class="kpi-value" id="m-maxpot">—</div></div>
-    <div class="kpi-card"><div class="kpi-label">Overall Potential</div><div class="kpi-value" id="m-overallpot">—</div></div>
-    <div class="kpi-card"><div class="kpi-label">Target (May)</div><div class="kpi-value" id="m-target">—</div></div>
-    <div class="kpi-card accent-blue"><div class="kpi-label">Max-Pot Ach.</div><div class="kpi-value" id="m-maxAch">—</div><div class="kpi-sub">MTD ÷ Max Pot</div></div>
+  <!-- Charts row -->
+  <div class="chart-grid" id="cv-chart-row" style="display:none;">
+    <div class="chart-card"><h4>📞 Called vs Not Called — by Zone</h4><canvas id="chartCvCalled"></canvas></div>
+    <div class="chart-card"><h4>🚶 Visited vs Not Visited — by Zone</h4><canvas id="chartCvVisited"></canvas></div>
   </div>
 
-  <div class="card-grid grid-4">
-    <div class="kpi-card accent-green"><div class="kpi-label">Calls (Total)</div><div class="kpi-value pos" id="m-calls">—</div></div>
-    <div class="kpi-card accent-blue"><div class="kpi-label">Visits (Total)</div><div class="kpi-value pos" id="m-visits">—</div></div>
-    <div class="kpi-card accent-green"><div class="kpi-label">Growth Partners</div><div class="kpi-value" id="m-growth">—</div></div>
-    <div class="kpi-card accent-red"><div class="kpi-label">Degrowth Partners</div><div class="kpi-value" id="m-degrowth">—</div></div>
-  </div>
+  <!-- Zone-wise table -->
+  <div class="section-title" id="cv-zone-title" style="display:none;">📍 Zone-wise Call & Visit Summary</div>
+  <div class="data-table-wrap" id="cv-zone-table-wrap" style="display:none;margin-bottom:28px;"></div>
 
-  <div class="card-grid grid-2">
-    <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Zone-wise MTD Business (6 zones)</div><canvas id="chartZoneMtd" height="200"></canvas></div>
-    <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">MTD vs LMTD by Zone</div><canvas id="chartZoneMtdLmtd" height="200"></canvas></div>
-  </div>
-  <div class="card-grid grid-3">
-    <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Active vs Inactive</div><canvas id="chartMActivity" height="160"></canvas></div>
-    <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Connected vs Not</div><canvas id="chartMConnect" height="160"></canvas></div>
-    <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Growth vs Degrowth</div><canvas id="chartMGrowth" height="160"></canvas></div>
-  </div>
-</section>
+  <!-- ZH-wise table -->
+  <div class="section-title" id="cv-zh-title" style="display:none;">🎖️ Zone Head (ZH) — Territory Tracker</div>
+  <div class="data-table-wrap" id="cv-zh-table-wrap" style="display:none;margin-bottom:28px;"></div>
 
-<!-- ======= ZONE COMPARISON (now 6 zones) ======= -->
-<section class="tab-pane" id="pane-zones">
-  <h2 class="section-title">Zone Performance Comparison</h2>
-  <p class="section-sub">All <b>6 zones</b> ranked by MTD — North, East, South, West, RON, and TELE_RM. Click "View Team" to drill into role hierarchy.</p>
-  <div id="zoneBestBanner" style="margin-bottom:14px;"></div>
-  <div class="zone-compare-grid" id="zoneCompareGrid"></div>
-  <div class="card-grid grid-2" style="margin-top:14px;">
-    <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Zone Max Potential (6 zones)</div><canvas id="chartZoneMaxPot" height="180"></canvas></div>
-    <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Zone Active Partners</div><canvas id="chartZoneActive" height="180"></canvas></div>
+  <!-- Owner role tabs -->
+  <div class="section-title" id="cv-owner-title" style="display:none;">👤 Owner-wise Performance</div>
+  <div class="role-tabs" id="cv-role-tabs" style="display:none;">
+    <button class="role-tab-btn active" data-role="AM">Account Manager (AM)</button>
+    <button class="role-tab-btn" data-role="RM">Relationship Manager (RM)</button>
+    <button class="role-tab-btn" data-role="SH">Sales Head (SH)</button>
+    <button class="role-tab-btn" data-role="RH">Regional Head (RH)</button>
   </div>
-</section>
+  <div class="data-table-wrap" id="cv-owner-table-wrap" style="display:none;"></div>
+</div>
 
-<!-- ======= ROLE PERFORMANCE ======= -->
-<section class="tab-pane" id="pane-roles">
-  <h2 class="section-title">Role-Level Performance</h2>
-  <div class="filter-bar">
-    <select id="fRole"><option value="ZH">ZH</option><option value="RH">RH</option><option value="SH">SH</option><option value="RM">RM</option><option value="AM" selected>AM</option></select>
-    <input type="text" id="fRoleSearch" placeholder="Search name…"/>
-    <select id="fRoleSort"><option value="mtd">Sort: MTD High→Low</option><option value="ach">Achievement%</option><option value="partners">Partner count</option><option value="name">Name A–Z</option></select>
+<!-- ═══════════════ ROLE PERFORMANCE ═════════════════════════════ -->
+<div class="tab-pane" id="tab-role-perf">
+  <div id="role-perf-content">
+    <div class="tab-loader"><div class="spinner"></div> Loading…</div>
   </div>
-  <div class="team-grid" id="roleGrid"></div>
-</section>
+</div>
 
-<!-- ======= STATE RANKING ======= -->
-<section class="tab-pane" id="pane-states">
-  <h2 class="section-title">State Performance Ranking</h2>
-  <div class="table-wrap">
-    <table class="ptable">
-      <thead><tr>
-        <th>Rank</th><th>State</th><th>Zone</th><th>Partners</th>
-        <th>Max Pot.</th><th>Overall Pot.</th><th>Target</th>
-        <th>MTD</th><th>LMTD</th><th>MoM%</th><th>Ach%</th>
-        <th>Active</th><th>Connected</th><th>Engagement%</th>
-        <th>Calls</th><th>Visits</th>
-      </tr></thead>
-      <tbody id="stateTbody"></tbody>
-    </table>
+<!-- ═══════════════ STATE PERFORMANCE ════════════════════════════ -->
+<div class="tab-pane" id="tab-state-perf">
+  <div id="state-perf-content">
+    <div class="tab-loader"><div class="spinner"></div> Loading…</div>
   </div>
-</section>
+</div>
 
-<!-- REMOVED: Daily Run Rate tab from master (DRR removed) -->
-
-<!-- ======= LOGINS ======= -->
-<section class="tab-pane" id="pane-logins">
-  <h2 class="section-title">Login Activity</h2>
-  <div class="filter-bar">
-    <input type="text" id="fLoginSearch" placeholder="Search user…"/>
-    <button class="btn-ghost" id="btnRefreshLogins">Refresh</button>
-  </div>
-  <div class="kpi-row">
-    <div class="kpi-mini"><div><div class="kpi-mini-label">Total Logins</div><div class="kpi-mini-val" id="loginTotal">—</div></div></div>
-    <div class="kpi-mini"><div><div class="kpi-mini-label">Unique Users</div><div class="kpi-mini-val" id="loginUsers">—</div></div></div>
-  </div>
-  <div class="table-wrap">
-    <table class="ptable">
-      <thead><tr><th>User</th><th>GID</th><th>Role</th><th>Zone</th><th>Logins</th><th>Last Login</th></tr></thead>
-      <tbody id="loginsTbody"></tbody>
-    </table>
-  </div>
-</section>
-
-<!-- ======= ZONE DRILL MODAL ======= -->
-<div class="modal hidden" id="drillModal">
-  <div class="modal-backdrop" id="modalBackdrop"></div>
-  <div class="modal-window large">
-    <button class="modal-close" id="modalClose">×</button>
-    <div id="modalBody"></div>
+<!-- ═══════════════ LOGIN ACTIVITY ═══════════════════════════════ -->
+<div class="tab-pane" id="tab-login-log">
+  <div id="login-log-content">
+    <div class="tab-loader"><div class="spinner"></div> Loading…</div>
   </div>
 </div>
 
