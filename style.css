@@ -218,3 +218,15 @@ textarea{width:100%;border:1px solid #e2e8f0;border-radius:7px;padding:10px;font
 .rank-cell.rank-1{color:#f59e0b;}
 .rank-cell.rank-2{color:#94a3b8;}
 .rank-cell.rank-3{color:#b45309;}
+/* v9: Call/Visit Tracker Styles */
+.my-activity-wrapper { margin: 0 0 24px; }
+.activity-card { background: #fff; border-radius: 14px; padding: 20px 24px; box-shadow: 0 1px 5px rgba(0,0,0,.08); border-left: 5px solid #2563eb; }
+.activity-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 12px; margin-bottom: 18px; }
+.activity-stat { background: #f8fafc; border-radius: 10px; padding: 12px 14px; text-align: center; }
+.ast-label { font-size: .72rem; color: #64748b; text-transform: uppercase; letter-spacing: .4px; margin-bottom: 6px; }
+.ast-value { font-size: 1.4rem; font-weight: 700; }
+.ast-value.green { color: #16a34a; }
+.ast-value.red { color: #dc2626; }
+.ast-value.blue { color: #2563eb; }
+.ast-value.amber { color: #d97706; }
+.ast-sub { font-size: .72rem; color: #94a3b8; margin-top: 3px; }
