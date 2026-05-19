@@ -508,3 +508,27 @@ $('modalBackdrop').addEventListener('click',()=>$('partnerModal').classList.add(
 
 loadDashboard();
 })();
+// v9: Call/Visit Activity Card
+async function loadMyActivity() {
+  var wrap = document.getElementById('my-activity-card');
+  if (!wrap) return;
+  wrap.innerHTML = '<div style="text-align:center;padding:12px;color:#94a3b8">Loading activity…</div>';
+  try {
+    var qs = `action=getOwnerCallVisit&token=${encodeURIComponent(partnerToken)}`;
+    var res = await fetch(API_URL + '?' + qs);
+    var d = await res.json();
+    if (!d.success) throw new Error(d.error || 'Load failed');
+    renderMyActivityCard(d.stats);
+  } catch(e) {
+    wrap.innerHTML = `<div style="color:#dc2626;padding:12px;font-size:.82rem">Activity load failed: ${e.message}</div>`;
+  }
+}
+
+function renderMyActivityCard(s) {
+  var wrap = document.getElementById('my-activity-card');
+  if (!wrap) return;
+  s = s || {};
+  var total = s.total || 0, called = s.called || 0, notCall = s.notCalled || 0, visited = s.visited || 0, notVisit = s.notVisited || 0, callsSum = s.callsSum || 0, visSum = s.visitsSum || 0;
+  var calledPct = total ? Math.round((called / total) * 100) : 0, visitedPct = total ? Math.round((visited / total) * 100) : 0;
+  wrap.innerHTML = `<div style="background:#fff;border-radius:14px;padding:20px;box-shadow:0 1px 5px rgba(0,0,0,.08);border-left:5px solid #2563eb;margin:0 0 24px"><div style="display:flex;gap:10px;margin-bottom:16px"><span style="font-size:1.2rem">📞</span><span style="font-size:.95rem;font-weight:700;color:#1e293b">My Call & Visit Activity</span></div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:12px;margin-bottom:18px"><div style="background:#f8fafc;border-radius:10px;padding:12px;text-align:center"><div style="font-size:.72rem;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Total Partners</div><div style="font-size:1.4rem;font-weight:700;color:#1e293b">${total.toLocaleString('en-IN')}</div></div><div style="background:#f8fafc;border-radius:10px;padding:12px;text-align:center"><div style="font-size:.72rem;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Called</div><div style="font-size:1.4rem;font-weight:700;color:#16a34a">${called.toLocaleString('en-IN')}</div><div style="font-size:.72rem;color:#94a3b8;margin-top:3px">${calledPct}%</div></div><div style="background:#f8fafc;border-radius:10px;padding:12px;text-align:center"><div style="font-size:.72rem;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Not Called</div><div style="font-size:1.4rem;font-weight:700;color:#dc2626">${notCall.toLocaleString('en-IN')}</div><div style="font-size:.72rem;color:#94a3b8;margin-top:3px">${100-calledPct}%</div></div><div style="background:#f8fafc;border-radius:10px;padding:12px;text-align:center"><div style="font-size:.72rem;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Visited</div><div style="font-size:1.4rem;font-weight:700;color:#16a34a">${visited.toLocaleString('en-IN')}</div><div style="font-size:.72rem;color:#94a3b8;margin-top:3px">${visitedPct}%</div></div><div style="background:#f8fafc;border-radius:10px;padding:12px;text-align:center"><div style="font-size:.72rem;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Not Visited</div><div style="font-size:1.4rem;font-weight:700;color:#d97706">${notVisit.toLocaleString('en-IN')}</div><div style="font-size:.72rem;color:#94a3b8;margin-top:3px">${100-visitedPct}%</div></div><div style="background:#f8fafc;border-radius:10px;padding:12px;text-align:center"><div style="font-size:.72rem;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Total Calls</div><div style="font-size:1.4rem;font-weight:700;color:#2563eb">${callsSum.toLocaleString('en-IN')}</div></div><div style="background:#f8fafc;border-radius:10px;padding:12px;text-align:center"><div style="font-size:.72rem;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Total Visits</div><div style="font-size:1.4rem;font-weight:700;color:#2563eb">${visSum.toLocaleString('en-IN')}</div></div></div></div>`;
+}
