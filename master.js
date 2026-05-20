@@ -1,412 +1,446 @@
 // ====================================================================
-// master.js — v9   (National Head Dashboard)
-// NEW IN v9: Call & Visit Tracker tab (renderCallVisitTab)
+// master.js v10 — Master Dashboard Renderer
+// NEW: FTD cards, Net Combined Premium, Active Months, Zone from col F
 // ====================================================================
 
-// ── Auth guard ──────────────────────────────────────────────────────
-const masterToken = localStorage.getItem('partnerToken');
-const masterUser  = JSON.parse(localStorage.getItem('partnerUser') || '{}');
-if (!masterToken) { window.location.href = 'index.html'; }
+var masterCharts = {};
 
-// ── Tab routing ─────────────────────────────────────────────────────
-let cvData       = null;   // cached call/visit payload
-let cvChartCalled  = null;
-let cvChartVisited = null;
-let activeOwnerRole = 'AM';
+function fmt(n)    { return Number(n||0).toLocaleString('en-IN'); }
+function fmtL(n)   { var v=Number(n||0); if(v>=10000000)return (v/10000000).toFixed(2)+'Cr'; if(v>=100000)return (v/100000).toFixed(2)+'L'; return v.toLocaleString('en-IN'); }
+function pct(n)    { return (Number(n||0)>0?'+':'')+Number(n||0)+'%'; }
+function clr(v,pos){ return Number(v||0)>=0?'kpi-pos':'kpi-neg'; }
 
-document.querySelectorAll('.tab-btn').forEach(function(btn) {
-  btn.addEventListener('click', function() {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    var tab = btn.dataset.tab;
-    document.getElementById('tab-' + tab).classList.add('active');
+// ── CONFIG ─────────────────────────────────────────────────────────
+var API_URL = (typeof CONFIG !== 'undefined' && CONFIG.API_URL) ? CONFIG.API_URL : '';
 
-    if (tab === 'pan-india')   loadPanIndia();
-    if (tab === 'zone-perf')   loadZonePerf();
-    if (tab === 'callvisit')   loadCallVisit();
-    if (tab === 'role-perf')   loadRolePerf();
-    if (tab === 'state-perf')  loadStatePerf();
-    if (tab === 'login-log')   loadLoginLog();
+// ========================= BOOTSTRAP ================================
+
+function initMasterDashboard() {
+  var gid = sessionStorage.getItem('gid');
+  if (!gid) { window.location.href = 'index.html'; return; }
+
+  document.getElementById('logoutBtn') && document.getElementById('logoutBtn').addEventListener('click', function() {
+    sessionStorage.clear(); window.location.href = 'index.html';
   });
-});
 
-// ── Helpers ─────────────────────────────────────────────────────────
-function fmt(n)    { return (n || 0).toLocaleString('en-IN'); }
-function fmtCr(n)  { return '₹' + ((n||0)/1e7).toFixed(2) + ' Cr'; }
-function pct(a, b) { return b ? Math.round((a/b)*100) : 0; }
-function pctBadge(p) {
-  var cls = p >= 70 ? 'high' : p >= 40 ? 'medium' : 'low';
-  return `<span class="pct-badge ${cls}">${p}%</span>`;
-}
-function rankBadge(i) {
-  if (i === 0) return '<span class="rank r1">1</span>';
-  if (i === 1) return '<span class="rank r2">2</span>';
-  if (i === 2) return '<span class="rank r3">3</span>';
-  return `<span class="rank rn">${i+1}</span>`;
+  showMasterLoader(true);
+  fetch(API_URL + '?action=getMaster&gid=' + encodeURIComponent(gid))
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      showMasterLoader(false);
+      if (!data.success) { alert('Error: ' + data.message); return; }
+      renderMasterDashboard(data);
+    })
+    .catch(function(err) { showMasterLoader(false); alert('Network error: '+err); });
 }
 
-async function apiFetch(action, extra) {
-  var params = Object.assign({ action, token: masterToken }, extra || {});
-  var qs = Object.keys(params).map(k => k + '=' + encodeURIComponent(params[k])).join('&');
-  var res = await fetch(API_URL + '?' + qs);
-  return res.json();
+function showMasterLoader(show) {
+  var el = document.getElementById('masterLoader');
+  if (el) el.style.display = show ? 'flex' : 'none';
 }
 
-function logout() {
-  localStorage.clear();
-  window.location.href = 'index.html';
+// ========================= MAIN RENDERER ============================
+
+function renderMasterDashboard(data) {
+  window._masterData = data;   // cache for zone modal drill-downs
+  var o  = data.overallProject || {};
+  var s  = data.overallSummary || {};
+
+  // Header
+  var hdr = document.getElementById('masterHeader');
+  if (hdr) hdr.innerHTML = '<strong>Partner Engage Portal</strong> &mdash; National Command Centre &nbsp;|&nbsp; ' + fmt(data.totalPartners) + ' partners';
+
+  // KPI Strip (top)
+  renderKPIStrip(s, o);
+
+  // Tabs
+  setupTabs();
+
+  // Tab content
+  renderPanIndiaTab(data);
+  renderZoneTab(data);
+  renderRoleTab(data);
+  renderStateTab(data);
+  renderConnectTab(data);
+  renderLoginTab(data);
 }
 
-// ════════════════════════════════════════════════════════════════════
-// PAN-INDIA OVERVIEW
-// ════════════════════════════════════════════════════════════════════
-let panLoaded = false;
-async function loadPanIndia() {
-  if (panLoaded) return;
-  panLoaded = true;
-  try {
-    var d = await apiFetch('getMasterDashboard');
-    if (!d.success) { document.getElementById('pan-kpis').innerHTML = `<p style="color:red">Error: ${d.error}</p>`; return; }
-    var p = d.data || d;
+// ========================= KPI STRIP ================================
 
-    document.getElementById('pan-kpis').innerHTML = `
-      <div class="kpi-card"><div class="kpi-label">Total Partners</div><div class="kpi-value">${fmt(p.totalPartners)}</div></div>
-      <div class="kpi-card blue"><div class="kpi-label">MTD Business</div><div class="kpi-value">${fmtCr(p.mtd)}</div></div>
-      <div class="kpi-card"><div class="kpi-label">LMTD</div><div class="kpi-value">${fmtCr(p.lmtd)}</div></div>
-      <div class="kpi-card"><div class="kpi-label">Max Potential</div><div class="kpi-value">${fmtCr(p.maxPotential)}</div></div>
-      <div class="kpi-card"><div class="kpi-label">Overall Potential</div><div class="kpi-value">${fmtCr(p.overallPotential)}</div></div>
-      <div class="kpi-card green"><div class="kpi-label">Active Partners</div><div class="kpi-value">${fmt(p.active)}</div></div>
-      <div class="kpi-card red"><div class="kpi-label">Inactive Partners</div><div class="kpi-value">${fmt(p.inactive)}</div></div>
-      <div class="kpi-card blue"><div class="kpi-label">Total Calls</div><div class="kpi-value">${fmt(p.totalCalls)}</div></div>
-      <div class="kpi-card green"><div class="kpi-label">Total Visits</div><div class="kpi-value">${fmt(p.totalVisits)}</div></div>
-    `;
-
-    // Charts
-    var zones = p.zones || [];
-    var labels = zones.map(z => z.zone);
-    drawBar('chartZoneMtd',    labels, zones.map(z=>z.mtd),        'MTD (₹)',        '#2563eb');
-    drawBar('chartZoneActive', labels, zones.map(z=>z.active),     'Active Partners','#16a34a');
-    drawBar('chartZonePot',    labels, zones.map(z=>z.maxPotential),'Max Potential', '#9333ea');
-    drawGroupedBar('chartMtdLmtd', labels, zones.map(z=>z.mtd), zones.map(z=>z.lmtd));
-  } catch(e) {
-    document.getElementById('pan-kpis').innerHTML = `<p style="color:red">Failed to load: ${e.message}</p>`;
-  }
+function renderKPIStrip(s, o) {
+  var el = document.getElementById('masterKpiStrip');
+  if (!el) return;
+  var mom  = Number(s.momPct || 0);
+  var ach  = Number(s.achievementPct || 0);
+  el.innerHTML =
+    kpiCard('FTD Premium',         fmtL(o.ftd),                  '',               '') +
+    kpiCard('MTD Premium',         fmtL(o.businessGenerated),     '',               '') +
+    kpiCard('LMTD Premium',        fmtL(o.lmtd),                 '',               '') +
+    kpiCard('Net Combined Premium',fmtL(o.netCombinedPremium),   '(Apr\'25→Apr\'26)','kpi-accent') +
+    kpiCard('Target (May)',        fmtL(o.target),               '',               '') +
+    kpiCard('Achievement',         ach + '%',                    mom > 0 ? 'MoM '+pct(mom) : 'MoM '+pct(mom), mom >= 0 ? 'kpi-pos' : 'kpi-neg') +
+    kpiCard('Total Partners',      fmt(o.totalPartners),         '',               '') +
+    kpiCard('Active',              fmt(o.activePartners),        s.activePct+'%',  'kpi-pos') +
+    kpiCard('Growth',              fmt(o.growthCount),           s.growthPct+'%',  'kpi-pos') +
+    kpiCard('Connected',           fmt(o.connectedPartners),     s.engagementPct+'%','kpi-pos') +
+    kpiCard('Calls',               fmt(o.calls),                '',               '') +
+    kpiCard('Visits',              fmt(o.visits),               '',               '');
 }
 
-function drawBar(id, labels, data, label, color) {
-  var ctx = document.getElementById(id);
-  if (!ctx) return;
-  if (ctx._chart) ctx._chart.destroy();
-  ctx._chart = new Chart(ctx, {
-    type: 'bar',
-    data: { labels, datasets: [{ label, data, backgroundColor: color+'99', borderColor: color, borderWidth:1 }] },
-    options: { responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
-  });
-}
-function drawGroupedBar(id, labels, mtd, lmtd) {
-  var ctx = document.getElementById(id);
-  if (!ctx) return;
-  if (ctx._chart) ctx._chart.destroy();
-  ctx._chart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        { label:'MTD',  data:mtd,  backgroundColor:'#2563eb99', borderColor:'#2563eb', borderWidth:1 },
-        { label:'LMTD', data:lmtd, backgroundColor:'#94a3b899', borderColor:'#94a3b8', borderWidth:1 }
-      ]
-    },
-    options: { responsive:true, scales:{y:{beginAtZero:true}} }
-  });
+function kpiCard(label, value, sub, cls) {
+  return '<div class="kpi-card"><div class="kpi-label">'+label+'</div><div class="kpi-value '+(cls||'')+'">'+value+'</div>'+(sub?'<div class="kpi-sub">'+sub+'</div>':'')+'</div>';
 }
 
-// ════════════════════════════════════════════════════════════════════
-// ZONE PERFORMANCE
-// ════════════════════════════════════════════════════════════════════
-let zoneLoaded = false;
-async function loadZonePerf() {
-  if (zoneLoaded) return; zoneLoaded = true;
-  try {
-    var d = await apiFetch('getMasterDashboard');
-    var zones = (d.data || d).zones || [];
-    var colors = { North:'north', South:'south', 'East & Central':'east', West:'west', RON:'ron', TELE_RM:'tele' };
-    var html = '<div class="zone-cards">';
-    zones.forEach(function(z) {
-      var cls = colors[z.zone] || '';
-      html += `
-        <div class="zone-card ${cls}">
-          <h3>📍 ${z.zone} Zone</h3>
-          <div class="zh-tag">ZH: ${z.zhName || '—'}</div>
-          <div class="zone-stat-row"><span class="zsr-label">Total Partners</span><span class="zsr-val">${fmt(z.totalPartners)}</span></div>
-          <div class="zone-stat-row"><span class="zsr-label">MTD</span><span class="zsr-val">${fmtCr(z.mtd)}</span></div>
-          <div class="zone-stat-row"><span class="zsr-label">Max Potential</span><span class="zsr-val">${fmtCr(z.maxPotential)}</span></div>
-          <div class="zone-stat-row"><span class="zsr-label">Active / Inactive</span><span class="zsr-val">${fmt(z.active)} / ${fmt(z.inactive)}</span></div>
-          <div class="zone-stat-row"><span class="zsr-label">Calls / Visits</span><span class="zsr-val">${fmt(z.totalCalls)} / ${fmt(z.totalVisits)}</span></div>
-          <div class="zone-stat-row"><span class="zsr-label">Achievement</span><span class="zsr-val">${pct(z.mtd,z.target)}%</span></div>
-        </div>`;
-    });
-    html += '</div>';
-    document.getElementById('zone-perf-content').innerHTML = html;
-  } catch(e) { document.getElementById('zone-perf-content').innerHTML = `<p style="color:red">${e.message}</p>`; }
-}
+// ========================= TABS =====================================
 
-// ════════════════════════════════════════════════════════════════════
-// CALL & VISIT TRACKER  ★ NEW IN v9 ★
-// ════════════════════════════════════════════════════════════════════
-let cvLoaded = false;
-async function loadCallVisit() {
-  if (cvLoaded && cvData) { renderCallVisitFull(cvData); return; }
-  document.getElementById('cv-kpi-row').innerHTML = '<div class="tab-loader"><div class="spinner"></div> Loading call & visit data…</div>';
-
-  try {
-    var d = await apiFetch('getCallVisitStats');
-    if (!d.success) throw new Error(d.error || 'API error');
-    cvData   = d;
-    cvLoaded = true;
-    renderCallVisitFull(d);
-  } catch(e) {
-    document.getElementById('cv-kpi-row').innerHTML = `<p style="color:red;padding:20px">Failed to load: ${e.message}</p>`;
-  }
-}
-
-function renderCallVisitFull(d) {
-  var ov = d.overall || {};
-  var calledPct  = pct(ov.called,  ov.total);
-  var visitedPct = pct(ov.visited, ov.total);
-
-  // ── KPI Cards ───────────────────────────────────────────────────
-  document.getElementById('cv-kpi-row').innerHTML = `
-    <div class="kpi-card"><div class="kpi-label">Total Partners</div><div class="kpi-value">${fmt(ov.total)}</div><div class="kpi-sub">Across all zones</div></div>
-    <div class="kpi-card blue"><div class="kpi-label">Partners Called</div><div class="kpi-value">${fmt(ov.called)}</div><div class="kpi-sub">${calledPct}% coverage</div></div>
-    <div class="kpi-card red"><div class="kpi-label">Not Called</div><div class="kpi-value">${fmt(ov.notCalled)}</div><div class="kpi-sub">${100-calledPct}% pending</div></div>
-    <div class="kpi-card green"><div class="kpi-label">Partners Visited</div><div class="kpi-value">${fmt(ov.visited)}</div><div class="kpi-sub">${visitedPct}% coverage</div></div>
-    <div class="kpi-card amber"><div class="kpi-label">Not Visited</div><div class="kpi-value">${fmt(ov.notVisited)}</div><div class="kpi-sub">${100-visitedPct}% pending</div></div>
-    <div class="kpi-card blue"><div class="kpi-label">Total Calls Made</div><div class="kpi-value">${fmt(ov.callsSum)}</div><div class="kpi-sub">Sum of all call counts</div></div>
-    <div class="kpi-card green"><div class="kpi-label">Total Visits Made</div><div class="kpi-value">${fmt(ov.visitsSum)}</div><div class="kpi-sub">Sum of all visit counts</div></div>
-  `;
-
-  // ── Charts ───────────────────────────────────────────────────────
-  document.getElementById('cv-chart-row').style.display = '';
-  var zones = d.byZone || [];
-  var zLabels = zones.map(z => z.zone);
-  drawCvStackedBar('chartCvCalled',  zLabels, zones.map(z=>z.called),  zones.map(z=>z.notCalled),  'Called','Not Called','#2563eb','#fca5a5');
-  drawCvStackedBar('chartCvVisited', zLabels, zones.map(z=>z.visited), zones.map(z=>z.notVisited), 'Visited','Not Visited','#16a34a','#fcd34d');
-
-  // ── Zone table ───────────────────────────────────────────────────
-  document.getElementById('cv-zone-title').style.display = '';
-  document.getElementById('cv-zone-table-wrap').style.display = '';
-  var zoneHtml = `
-    <table class="data-table">
-      <thead><tr>
-        <th>Zone</th><th>Total</th>
-        <th>Called</th><th>% Called</th><th>Not Called</th>
-        <th>Visited</th><th>% Visited</th><th>Not Visited</th>
-        <th>Total Calls</th><th>Total Visits</th>
-      </tr></thead><tbody>`;
-  zones.forEach(function(z) {
-    var cp = pct(z.called,  z.total);
-    var vp = pct(z.visited, z.total);
-    zoneHtml += `<tr>
-      <td><strong>${z.zone}</strong></td>
-      <td>${fmt(z.total)}</td>
-      <td>${fmt(z.called)}</td>
-      <td>${pctBadge(cp)}<br><div class="prog-wrap"><div class="prog-fill called" style="width:${cp}%"></div></div></td>
-      <td>${fmt(z.notCalled)}</td>
-      <td>${fmt(z.visited)}</td>
-      <td>${pctBadge(vp)}<br><div class="prog-wrap"><div class="prog-fill visited" style="width:${vp}%"></div></div></td>
-      <td>${fmt(z.notVisited)}</td>
-      <td>${fmt(z.callsSum)}</td>
-      <td>${fmt(z.visitsSum)}</td>
-    </tr>`;
-  });
-  zoneHtml += '</tbody></table>';
-  document.getElementById('cv-zone-table-wrap').innerHTML = zoneHtml;
-
-  // ── ZH table ─────────────────────────────────────────────────────
-  document.getElementById('cv-zh-title').style.display = '';
-  document.getElementById('cv-zh-table-wrap').style.display = '';
-  var zhArr = (d.byZH || []).sort(function(a,b){ return b.callsSum-a.callsSum; });
-  var zhHtml = `
-    <table class="data-table">
-      <thead><tr>
-        <th>#</th><th>Zone Head (ZH)</th><th>Zone</th>
-        <th>Total Partners</th><th>Called</th><th>% Called</th>
-        <th>Visited</th><th>% Visited</th>
-        <th>Total Calls</th><th>Total Visits</th>
-      </tr></thead><tbody>`;
-  zhArr.forEach(function(z, i) {
-    var cp = pct(z.called,  z.total);
-    var vp = pct(z.visited, z.total);
-    zhHtml += `<tr>
-      <td>${rankBadge(i)}</td>
-      <td><strong>${z.zhName}</strong></td>
-      <td>${z.zone}</td>
-      <td>${fmt(z.total)}</td>
-      <td>${fmt(z.called)}</td>
-      <td>${pctBadge(cp)}</td>
-      <td>${fmt(z.visited)}</td>
-      <td>${pctBadge(vp)}</td>
-      <td><strong>${fmt(z.callsSum)}</strong></td>
-      <td><strong>${fmt(z.visitsSum)}</strong></td>
-    </tr>`;
-  });
-  zhHtml += '</tbody></table>';
-  document.getElementById('cv-zh-table-wrap').innerHTML = zhHtml;
-
-  // ── Owner role tabs ───────────────────────────────────────────────
-  document.getElementById('cv-owner-title').style.display = '';
-  document.getElementById('cv-role-tabs').style.display   = '';
-  document.getElementById('cv-owner-table-wrap').style.display = '';
-  renderOwnerTable(activeOwnerRole, d.byOwnerRole || {});
-
-  // Role tab click
-  document.querySelectorAll('#cv-role-tabs .role-tab-btn').forEach(function(btn) {
-    btn.onclick = function() {
-      document.querySelectorAll('#cv-role-tabs .role-tab-btn').forEach(b => b.classList.remove('active'));
+function setupTabs() {
+  document.querySelectorAll('.master-tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.master-tab-btn').forEach(function(b){ b.classList.remove('active'); });
+      document.querySelectorAll('.master-tab-content').forEach(function(c){ c.style.display='none'; });
       btn.classList.add('active');
-      activeOwnerRole = btn.dataset.role;
-      renderOwnerTable(activeOwnerRole, d.byOwnerRole || {});
-    };
+      var target = document.getElementById(btn.dataset.tab);
+      if (target) target.style.display = 'block';
+    });
   });
+  // Activate first tab
+  var first = document.querySelector('.master-tab-btn');
+  if (first) first.click();
 }
 
-function renderOwnerTable(role, byOwnerRole) {
-  var arr = byOwnerRole[role] || [];
-  if (!arr.length) {
-    document.getElementById('cv-owner-table-wrap').innerHTML =
-      `<p style="padding:20px;color:#64748b">No data found for role: ${role}</p>`;
-    return;
-  }
-  var html = `
-    <table class="data-table">
-      <thead><tr>
-        <th>#</th><th>${role} Name</th><th>Zone</th>
-        <th>Partners</th>
-        <th>Called</th><th>% Called</th>
-        <th>Visited</th><th>% Visited</th>
-        <th>Total Calls</th><th>Total Visits</th>
-        <th>Call Rate</th>
-      </tr></thead><tbody>`;
-  arr.forEach(function(o, i) {
-    var cp = pct(o.called,  o.total);
-    var vp = pct(o.visited, o.total);
-    var callRate = o.total ? (o.callsSum / o.total).toFixed(1) : '0';
-    html += `<tr>
-      <td>${rankBadge(i)}</td>
-      <td><strong>${o.name}</strong></td>
-      <td>${o.zone}</td>
-      <td>${fmt(o.total)}</td>
-      <td>${fmt(o.called)}</td>
-      <td>${pctBadge(cp)}<br><div class="prog-wrap"><div class="prog-fill called" style="width:${cp}%"></div></div></td>
-      <td>${fmt(o.visited)}</td>
-      <td>${pctBadge(vp)}<br><div class="prog-wrap"><div class="prog-fill visited" style="width:${vp}%"></div></div></td>
-      <td><strong>${fmt(o.callsSum)}</strong></td>
-      <td><strong>${fmt(o.visitsSum)}</strong></td>
-      <td>${callRate}x avg</td>
-    </tr>`;
-  });
-  html += '</tbody></table>';
-  document.getElementById('cv-owner-table-wrap').innerHTML = html;
+// ========================= PAN-INDIA TAB ============================
+
+function renderPanIndiaTab(data) {
+  var el = document.getElementById('tabPanIndia');
+  if (!el) return;
+  var o = data.overallProject || {};
+  var s = data.overallSummary || {};
+  var mom = Number(s.momPct || 0);
+
+  el.innerHTML =
+    // Row 1: Premium metrics
+    '<div class="m-section-title">Premium Overview</div>' +
+    '<div class="m-card-grid">' +
+      mCard('🎯 FTD Premium',           fmtL(o.ftd),                '',            '') +
+      mCard('📈 MTD Premium',            fmtL(o.businessGenerated), '',             '') +
+      mCard('📊 LMTD Premium',           fmtL(o.lmtd),             '',             '') +
+      mCard('💰 Net Combined Premium',   fmtL(o.netCombinedPremium),'Apr\'25→Apr\'26','accent') +
+    '</div>' +
+    '<div class="m-card-grid">' +
+      mCard('🏆 Target (May)',           fmtL(o.target),            '',            '') +
+      mCard('✅ Achievement',            (o.achievementPct||0)+'%', 'vs target',   o.achievementPct>=80?'pos':'neg') +
+      mCard('📉 MoM Change',             pct(mom),                  'vs LMTD',     mom>=0?'pos':'neg') +
+      mCard('📦 Overall Potential',      fmtL(o.overallPotential),  'absolute',    '') +
+    '</div>' +
+    // Row 2: Active months
+    '<div class="m-section-title">Active Months Analysis</div>' +
+    '<div class="m-card-grid">' +
+      mCard('📆 Avg Active Months',      (o.avgActiveMonths||0),    'per partner',  '') +
+      mCard('💼 Active Months Business', fmtL(o.activeMonthsBiz),   'cumulative',   '') +
+      mCard('🟢 Active Partners',        fmt(o.activePartners),     s.activePct+'%','pos') +
+      mCard('🔴 Inactive Partners',      fmt(o.inactivePartners),   '',             'neg') +
+    '</div>' +
+    // Row 3: Engagement
+    '<div class="m-section-title">Partner Engagement</div>' +
+    '<div class="m-card-grid">' +
+      mCard('📞 Total Calls',            fmt(o.calls),              '',             '') +
+      mCard('🏠 Total Visits',           fmt(o.visits),            '',             '') +
+      mCard('🤝 Connected',              fmt(o.connectedPartners),  s.engagementPct+'%','pos') +
+      mCard('❌ Not Connected',          fmt(o.nonConnectedPartners),'',            'neg') +
+    '</div>' +
+    '<div class="m-card-grid">' +
+      mCard('📈 Growth Partners',        fmt(o.growthCount),        s.growthPct+'%','pos') +
+      mCard('📉 Degrowth Partners',      fmt(o.degrowthCount),      '',             'neg') +
+      mCard('🎯 Max Pot Achievement',    (o.maxPotAchPct||0)+'%',   'vs max pot',   '') +
+      mCard('👥 Total Partners',         fmt(o.totalPartners),      '',             '') +
+    '</div>' +
+    // Charts
+    '<div class="m-section-title">Zone Comparison Charts</div>' +
+    '<div class="m-charts-grid">' +
+      '<div class="m-chart-box"><canvas id="chartZoneMTD"></canvas></div>' +
+      '<div class="m-chart-box"><canvas id="chartZoneFTD"></canvas></div>' +
+      '<div class="m-chart-box"><canvas id="chartZoneActive"></canvas></div>' +
+      '<div class="m-chart-box"><canvas id="chartZoneNetCombined"></canvas></div>' +
+    '</div>';
+
+  setTimeout(function() { renderZoneCharts(data.zoneSummaries || []); }, 100);
 }
 
-function drawCvStackedBar(id, labels, yes, no, yesLabel, noLabel, yesColor, noColor) {
+function mCard(label, value, sub, type) {
+  var cls = type === 'pos' ? 'kpi-pos' : type === 'neg' ? 'kpi-neg' : type === 'accent' ? 'kpi-accent' : '';
+  return '<div class="m-card"><div class="m-card-label">'+label+'</div><div class="m-card-value '+cls+'">'+value+'</div>'+(sub?'<div class="m-card-sub">'+sub+'</div>':'')+'</div>';
+}
+
+// ========================= CHARTS ===================================
+
+function renderZoneCharts(zones) {
+  if (!zones || !zones.length) return;
+  var labels = zones.map(function(z){ return z.zone; });
+  var mtdVals = zones.map(function(z){ return (z.summary||{}).currentMonthPremium||0; });
+  var ftdVals = zones.map(function(z){ return (z.overallProject||{}).ftd||0; });
+  var actVals = zones.map(function(z){ return (z.summary||{}).activeCount||0; });
+  var netVals = zones.map(function(z){ return (z.overallProject||{}).netCombinedPremium||0; });
+
+  buildBarChart('chartZoneMTD',    labels, mtdVals, 'MTD Premium by Zone',    ['#4F8EF7','#3F7AE8','#5F9BFF','#4F8EF7','#6FAEFF','#2F68D8']);
+  buildBarChart('chartZoneFTD',    labels, ftdVals, 'FTD Premium by Zone',    ['#22c55e','#16a34a','#4ade80','#22c55e','#86efac','#15803d']);
+  buildBarChart('chartZoneActive', labels, actVals, 'Active Partners by Zone',['#f59e0b','#d97706','#fbbf24','#f59e0b','#fcd34d','#b45309']);
+  buildBarChart('chartZoneNetCombined', labels, netVals, 'Net Combined Premium by Zone', ['#8b5cf6','#7c3aed','#a78bfa','#8b5cf6','#c4b5fd','#6d28d9']);
+}
+
+function buildBarChart(id, labels, data, title, colors) {
   var ctx = document.getElementById(id);
   if (!ctx) return;
-  if (ctx._chart) ctx._chart.destroy();
-  ctx._chart = new Chart(ctx, {
+  if (masterCharts[id]) { masterCharts[id].destroy(); }
+  masterCharts[id] = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels,
-      datasets: [
-        { label: yesLabel, data: yes, backgroundColor: yesColor + 'cc' },
-        { label: noLabel,  data: no,  backgroundColor: noColor  + 'cc' }
-      ]
+      labels: labels,
+      datasets: [{ label: title, data: data, backgroundColor: colors || '#4F8EF7', borderRadius: 6 }]
     },
     options: {
       responsive: true,
-      scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
-      plugins: { legend: { position: 'bottom' } }
+      plugins: { legend: { display: false }, title: { display: true, text: title, font: { size: 13, weight: 'bold' } } },
+      scales: { y: { ticks: { callback: function(v){ return fmtL(v); } } } }
     }
   });
 }
 
-// ════════════════════════════════════════════════════════════════════
-// ROLE PERFORMANCE
-// ════════════════════════════════════════════════════════════════════
-let roleLoaded = false;
-async function loadRolePerf() {
-  if (roleLoaded) return; roleLoaded = true;
-  try {
-    var d = await apiFetch('getMasterDashboard');
-    var roles = (d.data || d).rolePerf || [];
-    var html = `<div class="data-table-wrap"><table class="data-table">
-      <thead><tr>
-        <th>Name</th><th>Role</th><th>Zone</th>
-        <th>Partners</th><th>MTD</th><th>LMTD</th><th>MoM</th>
-        <th>Active</th><th>Calls</th><th>Visits</th>
-      </tr></thead><tbody>`;
-    roles.forEach(function(r) {
-      var mom = r.lmtd ? (((r.mtd-r.lmtd)/r.lmtd)*100).toFixed(1) : '—';
-      var momColor = parseFloat(mom) >= 0 ? '#16a34a' : '#dc2626';
-      html += `<tr>
-        <td><strong>${r.name}</strong></td>
-        <td>${r.role}</td><td>${r.zone||'—'}</td>
-        <td>${fmt(r.partners)}</td>
-        <td>${fmtCr(r.mtd)}</td><td>${fmtCr(r.lmtd)}</td>
-        <td style="color:${momColor};font-weight:700">${mom}%</td>
-        <td>${fmt(r.active)}</td>
-        <td>${fmt(r.calls)}</td><td>${fmt(r.visits)}</td>
-      </tr>`;
-    });
-    html += '</tbody></table></div>';
-    document.getElementById('role-perf-content').innerHTML = html;
-  } catch(e) { document.getElementById('role-perf-content').innerHTML = `<p style="color:red">${e.message}</p>`; }
+// ========================= ZONE TAB =================================
+
+function renderZoneTab(data) {
+  var el = document.getElementById('tabZone');
+  if (!el) return;
+  var zones = data.zoneSummaries || [];
+  var html  = '<div class="m-section-title">Zone Performance — All Zones</div><div class="zone-grid">';
+
+  zones.forEach(function(z) {
+    var s  = z.summary || {};
+    var o  = z.overallProject || {};
+    var mom = Number(s.momPct || 0);
+    html +=
+      '<div class="zone-card" data-zone="'+z.zone+'">' +
+        '<div class="zone-card-header">'+z.zone+' <span class="zone-badge">'+fmt(z.partnerCount)+' partners</span></div>' +
+        '<div class="zone-kpi-grid">' +
+          zKpi('FTD',               fmtL(o.ftd)) +
+          zKpi('MTD',               fmtL(o.businessGenerated)) +
+          zKpi('LMTD',              fmtL(o.lmtd)) +
+          zKpi('Net Combined',      fmtL(o.netCombinedPremium)) +
+          zKpi('Target',            fmtL(o.target)) +
+          zKpi('Achievement',       (o.achievementPct||0)+'%') +
+          zKpi('MoM',               pct(mom), mom>=0?'pos':'neg') +
+          zKpi('Active',            fmt(o.activePartners)+' / '+fmt(z.partnerCount)) +
+          zKpi('Growth',            fmt(o.growthCount)) +
+          zKpi('Connected',         fmt(o.connectedPartners)) +
+          zKpi('Calls',             fmt(o.calls)) +
+          zKpi('Visits',            fmt(o.visits)) +
+          zKpi('Avg Active Months', o.avgActiveMonths) +
+          zKpi('Active Biz',        fmtL(o.activeMonthsBiz)) +
+          zKpi('Potential',         fmtL(o.overallPotential)) +
+        '</div>' +
+        '<button class="zone-expand-btn" onclick="openZoneModal(\''+z.zone+'\')">👥 View Team Breakdown</button>' +
+      '</div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
 }
 
-// ════════════════════════════════════════════════════════════════════
-// STATE PERFORMANCE
-// ════════════════════════════════════════════════════════════════════
-let stateLoaded = false;
-async function loadStatePerf() {
-  if (stateLoaded) return; stateLoaded = true;
-  try {
-    var d = await apiFetch('getMasterDashboard');
-    var states = (d.data || d).statePerf || [];
-    states.sort((a,b) => b.mtd - a.mtd);
-    var html = `<div class="data-table-wrap"><table class="data-table">
-      <thead><tr><th>#</th><th>State</th><th>Zone</th><th>Partners</th>
-      <th>MTD</th><th>LMTD</th><th>Active</th><th>Calls</th><th>Visits</th></tr></thead><tbody>`;
-    states.forEach(function(s, i) {
-      html += `<tr><td>${rankBadge(i)}</td><td><strong>${s.state}</strong></td>
-        <td>${s.zone||'—'}</td><td>${fmt(s.partners)}</td>
-        <td>${fmtCr(s.mtd)}</td><td>${fmtCr(s.lmtd)}</td>
-        <td>${fmt(s.active)}</td><td>${fmt(s.calls)}</td><td>${fmt(s.visits)}</td></tr>`;
-    });
-    html += '</tbody></table></div>';
-    document.getElementById('state-perf-content').innerHTML = html;
-  } catch(e) { document.getElementById('state-perf-content').innerHTML = `<p style="color:red">${e.message}</p>`; }
+function zKpi(label, value, type) {
+  var cls = type === 'pos' ? 'kpi-pos' : type === 'neg' ? 'kpi-neg' : '';
+  return '<div class="zone-kpi"><span class="zk-label">'+label+'</span><span class="zk-val '+cls+'">'+value+'</span></div>';
 }
 
-// ════════════════════════════════════════════════════════════════════
-// LOGIN ACTIVITY
-// ════════════════════════════════════════════════════════════════════
-let loginLoaded = false;
-async function loadLoginLog() {
-  if (loginLoaded) return; loginLoaded = true;
-  try {
-    var d = await apiFetch('getLoginLog');
-    var logs = d.logs || [];
-    var html = `<div class="data-table-wrap"><table class="data-table">
-      <thead><tr><th>Name</th><th>Role</th><th>Zone</th><th>Last Login</th><th>Login Count</th></tr></thead><tbody>`;
-    logs.forEach(function(l) {
-      html += `<tr><td><strong>${l.name}</strong></td><td>${l.role}</td>
-        <td>${l.zone||'—'}</td><td>${l.lastLogin}</td><td>${l.count}</td></tr>`;
+// Zone modal (team breakdown)
+var _zoneModalData = {};
+function openZoneModal(zone) {
+  // Reload master data with zone filter — use cached _masterData
+  if (!window._masterData) return;
+  var zoneEntry = (window._masterData.zoneSummaries||[]).find(function(z){ return z.zone === zone; });
+  if (!zoneEntry) return;
+
+  var modal = document.getElementById('zoneModal');
+  if (!modal) return;
+  document.getElementById('zoneModalTitle').textContent = zone + ' — Team Breakdown';
+
+  // Use role performance filtered to this zone
+  var html = '';
+  ['zhPerf','rhPerf','shPerf','rmPerf','amPerf'].forEach(function(key) {
+    var role = key.replace('Perf','').toUpperCase();
+    var perf = (window._masterData[key]||[]).filter(function(p){ return p.zone === zone; });
+    if (!perf.length) return;
+    html += '<div class="breakdown-role-title">'+role+' Performance ('+zone+')</div>';
+    html += '<table class="breakdown-table"><thead><tr><th>Name</th><th>Partners</th><th>FTD</th><th>MTD</th><th>LMTD</th><th>Net Combined</th><th>Target</th><th>Ach%</th><th>MoM%</th><th>Active</th><th>Calls</th><th>Visits</th></tr></thead><tbody>';
+    perf.forEach(function(p) {
+      var s = p.summary || {}; var o = p.overallProject || {};
+      html += '<tr><td>'+p.name+'</td><td>'+p.partnerCount+'</td><td>'+fmtL(o.ftd)+'</td><td>'+fmtL(o.businessGenerated)+'</td><td>'+fmtL(o.lmtd)+'</td><td>'+fmtL(o.netCombinedPremium)+'</td><td>'+fmtL(o.target)+'</td><td class="'+(o.achievementPct>=80?'kpi-pos':'kpi-neg')+'">'+o.achievementPct+'%</td><td class="'+(s.momPct>=0?'kpi-pos':'kpi-neg')+'">'+pct(s.momPct)+'</td><td>'+o.activePartners+'</td><td>'+o.calls+'</td><td>'+o.visits+'</td></tr>';
     });
-    html += '</tbody></table></div>';
-    document.getElementById('login-log-content').innerHTML = html;
-  } catch(e) { document.getElementById('login-log-content').innerHTML = `<p style="color:red">${e.message}</p>`; }
+    html += '</tbody></table>';
+  });
+
+  document.getElementById('zoneModalBody').innerHTML = html || '<p>No team data for this zone.</p>';
+  modal.style.display = 'flex';
 }
 
-// ── Boot: load pan-india on page load ────────────────────────────────
-window.addEventListener('DOMContentLoaded', loadPanIndia);
+// ========================= ROLE TAB =================================
+
+function renderRoleTab(data) {
+  var el = document.getElementById('tabRole');
+  if (!el) return;
+
+  var roleMap = { ZH: data.zhPerf||[], RH: data.rhPerf||[], SH: data.shPerf||[], RM: data.rmPerf||[], AM: data.amPerf||[] };
+  var html = '<div class="role-tab-controls">';
+  Object.keys(roleMap).forEach(function(role) {
+    html += '<button class="role-select-btn" data-role="'+role+'">'+role+' ('+roleMap[role].length+')</button>';
+  });
+  html += '</div><div id="roleTableContainer"></div>';
+  el.innerHTML = html;
+
+  el.querySelectorAll('.role-select-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      el.querySelectorAll('.role-select-btn').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      renderRoleTable(roleMap[btn.dataset.role], btn.dataset.role);
+    });
+  });
+
+  // Auto-click ZH
+  var firstBtn = el.querySelector('.role-select-btn');
+  if (firstBtn) firstBtn.click();
+}
+
+function renderRoleTable(perf, role) {
+  var cont = document.getElementById('roleTableContainer');
+  if (!cont) return;
+  if (!perf || !perf.length) { cont.innerHTML = '<p class="no-data">No '+role+' data found.</p>'; return; }
+  var html = '<table class="role-perf-table"><thead><tr><th>#</th><th>Name</th><th>Zone</th><th>Partners</th><th>FTD</th><th>MTD</th><th>LMTD</th><th>Net Combined</th><th>Target</th><th>Ach%</th><th>MoM%</th><th>Active</th><th>Calls</th><th>Visits</th><th>Avg Active Months</th></tr></thead><tbody>';
+  perf.forEach(function(p, i) {
+    var s = p.summary||{}; var o = p.overallProject||{};
+    var mom = Number(s.momPct||0);
+    html += '<tr>' +
+      '<td>'+(i+1)+'</td>' +
+      '<td><strong>'+p.name+'</strong></td>' +
+      '<td>'+p.zone+'</td>' +
+      '<td>'+p.partnerCount+'</td>' +
+      '<td>'+fmtL(o.ftd)+'</td>' +
+      '<td>'+fmtL(o.businessGenerated)+'</td>' +
+      '<td>'+fmtL(o.lmtd)+'</td>' +
+      '<td class="kpi-accent">'+fmtL(o.netCombinedPremium)+'</td>' +
+      '<td>'+fmtL(o.target)+'</td>' +
+      '<td class="'+(o.achievementPct>=80?'kpi-pos':'kpi-neg')+'">'+o.achievementPct+'%</td>' +
+      '<td class="'+(mom>=0?'kpi-pos':'kpi-neg')+'">'+pct(mom)+'</td>' +
+      '<td>'+o.activePartners+'</td>' +
+      '<td>'+o.calls+'</td>' +
+      '<td>'+o.visits+'</td>' +
+      '<td>'+o.avgActiveMonths+'</td>' +
+    '</tr>';
+  });
+  html += '</tbody></table>';
+  cont.innerHTML = html;
+}
+
+// ========================= STATE TAB ================================
+
+function renderStateTab(data) {
+  var el = document.getElementById('tabState');
+  if (!el) return;
+  var states = data.stateSummaries || [];
+  var html   = '<div class="m-section-title">State-wise Performance</div><table class="state-table"><thead><tr><th>#</th><th>State</th><th>Partners</th><th>FTD</th><th>MTD</th><th>LMTD</th><th>MoM%</th><th>Active</th><th>Net Combined</th></tr></thead><tbody>';
+  states.forEach(function(st, i) {
+    var s   = st.summary || {};
+    var mom = Number(s.momPct || 0);
+    html += '<tr><td>'+(i+1)+'</td><td>'+st.state+'</td><td>'+st.partnerCount+'</td><td>'+fmtL(s.ftdTotal)+'</td><td>'+fmtL(s.currentMonthPremium)+'</td><td>'+fmtL(s.prevMonthPremium)+'</td><td class="'+(mom>=0?'kpi-pos':'kpi-neg')+'">'+pct(mom)+'</td><td>'+s.activeCount+'</td><td class="kpi-accent">'+fmtL(s.totalNetCombinedPremium)+'</td></tr>';
+  });
+  html += '</tbody></table>';
+  el.innerHTML = html;
+}
+
+// ========================= CONNECT (CALL/VISIT) TAB =================
+
+function renderConnectTab(data) {
+  var el = document.getElementById('tabConnect');
+  if (!el) return;
+  el.innerHTML = '<div class="m-section-title">Call &amp; Visit Tracker</div><div id="connectStatsContainer"><div class="loader-text">Loading call/visit data...</div></div>';
+
+  var gid = sessionStorage.getItem('gid');
+  fetch(API_URL + '?action=getCallVisitStats&gid=' + encodeURIComponent(gid))
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      if (!d.success) { document.getElementById('connectStatsContainer').innerHTML = '<p class="error-text">'+d.message+'</p>'; return; }
+      renderConnectStats(d);
+    })
+    .catch(function(err) { document.getElementById('connectStatsContainer').innerHTML = '<p class="error-text">Error: '+err+'</p>'; });
+}
+
+function renderConnectStats(d) {
+  var cont = document.getElementById('connectStatsContainer');
+  if (!cont) return;
+  var o    = d.overall || {};
+  var callPct  = o.total > 0 ? Math.round(o.called  / o.total * 100) : 0;
+  var visitPct = o.total > 0 ? Math.round(o.visited / o.total * 100) : 0;
+
+  var html =
+    '<div class="m-card-grid">' +
+      mCard('👥 Total Partners',   fmt(o.total),       '',                 '') +
+      mCard('📞 Called',           fmt(o.called),      callPct+'%',        'pos') +
+      mCard('🚫 Not Called',       fmt(o.notCalled),   '',                 'neg') +
+      mCard('🏠 Visited',          fmt(o.visited),     visitPct+'%',       'pos') +
+      mCard('❌ Not Visited',      fmt(o.notVisited),  '',                 'neg') +
+      mCard('📲 Total Calls Made', fmt(o.callsSum),    '',                 '') +
+      mCard('🚶 Total Visits Made',fmt(o.visitsSum),   '',                 '') +
+    '</div>' +
+    '<div class="m-section-title">Zone-wise Activity</div>' +
+    '<table class="cv-table"><thead><tr><th>Zone</th><th>Total</th><th>Called</th><th>Call%</th><th>Not Called</th><th>Visited</th><th>Visit%</th><th>Not Visited</th><th>Calls Sum</th><th>Visits Sum</th></tr></thead><tbody>';
+
+  (d.byZone||[]).forEach(function(z) {
+    var cp = z.total>0?Math.round(z.called/z.total*100):0;
+    var vp = z.total>0?Math.round(z.visited/z.total*100):0;
+    html += '<tr><td><strong>'+z.zone+'</strong></td><td>'+z.total+'</td><td class="kpi-pos">'+z.called+'</td><td>'+cp+'%</td><td class="kpi-neg">'+z.notCalled+'</td><td class="kpi-pos">'+z.visited+'</td><td>'+vp+'%</td><td class="kpi-neg">'+z.notVisited+'</td><td>'+z.callsSum+'</td><td>'+z.visitsSum+'</td></tr>';
+  });
+  html += '</tbody></table>';
+
+  html += '<div class="m-section-title">Owner-wise Activity</div>' +
+    '<table class="cv-table"><thead><tr><th>Role</th><th>Name</th><th>Zone</th><th>Total</th><th>Called</th><th>Visited</th><th>Calls Sum</th><th>Visits Sum</th></tr></thead><tbody>';
+  (d.byOwner||[]).forEach(function(own) {
+    html += '<tr><td>'+own.role+'</td><td>'+own.name+'</td><td>'+own.zone+'</td><td>'+own.total+'</td><td class="kpi-pos">'+own.called+'</td><td class="kpi-pos">'+own.visited+'</td><td>'+own.callsSum+'</td><td>'+own.visitsSum+'</td></tr>';
+  });
+  html += '</tbody></table>';
+  cont.innerHTML = html;
+}
+
+// ========================= LOGIN TAB ================================
+
+function renderLoginTab(data) {
+  var el = document.getElementById('tabLogin');
+  if (!el) return;
+  var gid = sessionStorage.getItem('gid');
+  el.innerHTML = '<div class="m-section-title">Login Activity</div><div id="loginStatsContent"><div class="loader-text">Loading...</div></div>';
+
+  fetch(API_URL + '?action=getLoginStats&gid=' + encodeURIComponent(gid))
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      if (!d.success) { document.getElementById('loginStatsContent').innerHTML = '<p>Error: '+d.message+'</p>'; return; }
+      var html = '<p class="login-total">Total logins: <strong>'+d.totalLogins+'</strong></p><table class="login-table"><thead><tr><th>GID</th><th>Name</th><th>Role</th><th>Zone</th><th>Logins</th><th>Last Login</th></tr></thead><tbody>';
+      (d.stats||[]).sort(function(a,b){return b.count-a.count;}).forEach(function(s) {
+        html += '<tr><td>'+s.gid+'</td><td>'+s.name+'</td><td>'+s.role+'</td><td>'+s.zone+'</td><td>'+s.count+'</td><td>'+new Date(s.lastLogin).toLocaleString('en-IN')+'</td></tr>';
+      });
+      html += '</tbody></table>';
+      document.getElementById('loginStatsContent').innerHTML = html;
+    });
+}
+
+// ========================= ZONE MODAL CLOSE =========================
+
+document.addEventListener('DOMContentLoaded', function() {
+  var closeBtn = document.getElementById('zoneModalClose');
+  if (closeBtn) closeBtn.addEventListener('click', function() {
+    document.getElementById('zoneModal').style.display = 'none';
+  });
+  var modal = document.getElementById('zoneModal');
+  if (modal) modal.addEventListener('click', function(e) {
+    if (e.target === modal) modal.style.display = 'none';
+  });
+
+  // Bootstrap
+  initMasterDashboard();
+});
+
+

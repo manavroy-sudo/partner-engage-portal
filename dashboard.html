@@ -1,180 +1,185 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>AM and Above Focused Partners — InsuranceDekho</title>
-<link rel="stylesheet" href="style.css"/>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Partner Engage Portal</title>
+  <link rel="stylesheet" href="style.css">
 </head>
-<body class="dashboard-body">
-<header class="topbar">
-  <div class="topbar-left">
-    <div class="brand">
-      <span class="brand-mark">ID</span>
-      <div>
-        <div class="brand-name">AM and Above Focused Partners</div>
-        <div class="brand-sub">InsuranceDekho Performance Portal</div>
+<body>
+  <div id="dashLoader" class="loader-overlay" style="display:none;">
+    <div class="spinner"></div><p>Loading dashboard…</p>
+  </div>
+
+  <!-- Header -->
+  <header class="dash-header">
+    <div class="dash-header-left">
+      <span class="logo-text">Partner Engage</span>
+      <span class="header-sub">InsuranceDekho</span>
+    </div>
+    <div class="dash-header-right">
+      <span id="userName" class="header-name"></span>
+      <span id="userRole" class="header-role"></span>
+      <button id="masterBtn" class="btn-outline" style="display:none;">📊 Master View</button>
+      <button id="logoutBtn" class="btn-outline">Logout</button>
+    </div>
+  </header>
+
+  <!-- KPI Strip -->
+  <div id="kpiStrip" class="kpi-strip"></div>
+
+  <!-- My Activity Card -->
+  <div id="myActivityCard" class="my-activity-card" style="display:none;"></div>
+
+  <!-- Main Tabs -->
+  <div class="tab-bar">
+    <button class="tab-btn active" data-target="allPartnersSection">All Partners</button>
+    <button class="tab-btn" data-target="myPartnersSection">My Partners</button>
+    <button class="tab-btn" data-target="teamSection">Team Breakdown</button>
+    <button class="tab-btn" data-target="amSection">AM Performance</button>
+  </div>
+
+  <!-- All Partners Section -->
+  <section id="allPartnersSection" class="tab-section active-section">
+    <div class="section-toolbar">
+      <input id="searchInput" type="text" class="filter-input" placeholder="🔍 Search partner name / GID…">
+      <select id="filterZone"  class="filter-select"><option value="">All Zones</option></select>
+      <select id="filterState" class="filter-select"><option value="">All States</option></select>
+      <select id="filterOwner" class="filter-select"><option value="">All Owners</option></select>
+      <button id="clearFiltersBtn" class="btn-outline">Clear Filters</button>
+    </div>
+    <div class="table-wrap">
+      <table id="partnersTable" class="data-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Partner Name</th>
+            <th>Zone</th>
+            <th>State</th>
+            <th>City</th>
+            <th>Owner Role</th>
+            <th>Owner Name</th>
+            <th>Status</th>
+            <th>Unique Status</th>
+            <th>FTD</th>
+            <th>MTD</th>
+            <th>LMTD</th>
+            <th>MoM%</th>
+            <th>Net Combined</th>
+            <th>Target (May)</th>
+            <th>Ach%</th>
+            <th>Active Months</th>
+            <th>Active Biz</th>
+            <th>Calls</th>
+            <th>Visits</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- My Partners Section -->
+  <section id="myPartnersSection" class="tab-section" style="display:none;">
+    <div class="table-wrap">
+      <table id="myPartnersTable" class="data-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Partner Name</th>
+            <th>Zone</th>
+            <th>State</th>
+            <th>City</th>
+            <th>Owner Role</th>
+            <th>Owner Name</th>
+            <th>Status</th>
+            <th>Unique Status</th>
+            <th>FTD</th>
+            <th>MTD</th>
+            <th>LMTD</th>
+            <th>MoM%</th>
+            <th>Net Combined</th>
+            <th>Target (May)</th>
+            <th>Ach%</th>
+            <th>Active Months</th>
+            <th>Active Biz</th>
+            <th>Calls</th>
+            <th>Visits</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Team Breakdown Section -->
+  <section id="teamSection" class="tab-section" style="display:none;">
+    <h3 class="section-title">Team Breakdown</h3>
+    <div id="teamBreakdownContainer"></div>
+    <h4 class="section-title" id="memberPartnersTitle" style="margin-top:20px;display:none;">Member's Partners</h4>
+    <div class="table-wrap">
+      <table id="memberPartnersTable" class="data-table" style="display:none;">
+        <thead>
+          <tr>
+            <th>#</th><th>Partner Name</th><th>Zone</th><th>State</th><th>City</th>
+            <th>Owner Role</th><th>Owner Name</th><th>Status</th><th>Unique Status</th>
+            <th>FTD</th><th>MTD</th><th>LMTD</th><th>MoM%</th>
+            <th>Net Combined</th><th>Target</th><th>Ach%</th>
+            <th>Active Months</th><th>Active Biz</th><th>Calls</th><th>Visits</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- AM Performance Section -->
+  <section id="amSection" class="tab-section" style="display:none;">
+    <h3 class="section-title">AM Performance</h3>
+    <div id="amPerfContainer"></div>
+  </section>
+
+  <!-- Partner Modal -->
+  <div id="partnerModal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h2 id="modalPartnerName"></h2>
+        <button id="modalClose" class="modal-close-btn">✕</button>
+      </div>
+      <div id="modalKpis" class="modal-kpi-grid"></div>
+      <div class="modal-chart-wrap">
+        <h4>Monthly Premium Trend (Apr'25 → Apr'26)</h4>
+        <canvas id="monthlyChart"></canvas>
+      </div>
+      <div class="modal-remark">
+        <h4>Remark</h4>
+        <textarea id="remarkText" rows="3" class="remark-input" placeholder="Add remark here…"></textarea>
+        <button id="saveRemarkBtn" class="btn-primary">Save Remark</button>
       </div>
     </div>
   </div>
-  <div class="topbar-right">
-    <div class="user-chip">
-      <div class="user-chip-name" id="userName">—</div>
-      <div class="user-chip-role" id="userRole">—</div>
-    </div>
-    <button class="btn-ghost" id="btnLogout" style="color:#fff;border-color:rgba(255,255,255,.2);">Logout</button>
-  </div>
-</header>
 
-<!-- REMOVED: AM Performance tab, Daily Run Rate tab -->
-<nav class="tabs">
-  <button class="tab active" data-tab="overall">Overview</button>
-  <button class="tab" data-tab="all">All Partners</button>
-  <button class="tab" data-tab="mine" id="tabMine">My Partners</button>
-  <button class="tab" data-tab="team" id="tabTeam">Team Performance</button>
-</nav>
-
-<div id="statusBar" class="status-bar hidden"></div>
-
-<!-- ======= OVERVIEW ======= -->
-<section class="tab-pane active" id="pane-overall">
-  <h2 class="section-title">Project Overview</h2>
-  <p class="section-sub">Live rollup within your zone. All numbers direct from master sheet. <span id="zoneChips"></span></p>
-
-  <div class="card-grid grid-3" style="margin-bottom:10px;">
-    <div class="kpi-card kpi-lg accent-blue">
-      <div class="kpi-label">Total Partners</div>
-      <div class="kpi-value" id="op-totalPartners">—</div>
-      <div class="kpi-foot">
-        <span class="pill pill-green">Active: <b id="op-active">—</b></span>
-        <span class="pill pill-red">Inactive: <b id="op-inactive">—</b></span>
-      </div>
-    </div>
-    <div class="kpi-card kpi-lg accent-green">
-      <div class="kpi-label">Business (MTD May'26)</div>
-      <!-- value color set dynamically by app.js based on MoM -->
-      <div class="kpi-value" id="op-business">—</div>
-      <div class="kpi-foot">
-        <span class="pill" id="op-momPill">MoM: <b id="op-mom">—</b></span>
-        <span class="pill pill-blue">Ach: <b id="op-ach">—</b></span>
-      </div>
-    </div>
-    <div class="kpi-card kpi-lg accent-amber">
-      <div class="kpi-label">Engagement</div>
-      <div class="kpi-value" id="op-connected">—</div>
-      <div class="kpi-foot">
-        <span class="pill pill-green">Connected: <b id="op-conn">—</b></span>
-        <span class="pill pill-amber">Not: <b id="op-notconn">—</b></span>
-      </div>
-    </div>
-  </div>
-
-  <div class="card-grid grid-6">
-    <div class="kpi-card accent-green"><div class="kpi-label">MTD (May'26)</div><div class="kpi-value" id="op-mtd">—</div><div class="kpi-sub" id="op-mtdSub">—</div></div>
-    <div class="kpi-card"><div class="kpi-label">LMTD (Apr'26)</div><div class="kpi-value" id="op-lmtd">—</div><div class="kpi-sub">Previous month</div></div>
-    <div class="kpi-card accent-purple"><div class="kpi-label">Max Potential</div><div class="kpi-value" id="op-maxpot">—</div><div class="kpi-sub">Best month × total</div></div>
-    <div class="kpi-card"><div class="kpi-label">Overall Potential</div><div class="kpi-value" id="op-overallpot">—</div><div class="kpi-sub">All platforms</div></div>
-    <div class="kpi-card"><div class="kpi-label">Target (May)</div><div class="kpi-value" id="op-target">—</div><div class="kpi-sub">Monthly target</div></div>
-    <div class="kpi-card accent-blue"><div class="kpi-label">Max-Pot Ach.</div><div class="kpi-value" id="op-maxAch">—</div><div class="kpi-sub">MTD ÷ Max Pot</div></div>
-  </div>
-
-  <div class="card-grid grid-4">
-    <div class="kpi-card accent-green"><div class="kpi-label">Calls</div><div class="kpi-value pos" id="op-calls">—</div></div>
-    <div class="kpi-card accent-blue"><div class="kpi-label">Visits</div><div class="kpi-value pos" id="op-visits">—</div></div>
-    <!-- Growth/Degrowth color set dynamically -->
-    <div class="kpi-card accent-green"><div class="kpi-label">Growth Partners</div><div class="kpi-value" id="op-growth">—</div></div>
-    <div class="kpi-card accent-red"><div class="kpi-label">Degrowth Partners</div><div class="kpi-value" id="op-degrowth">—</div></div>
-  </div>
-<div id="my-activity-card" class="my-activity-wrapper"></div>
-  <div class="card-grid grid-3">
-    <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Active vs Inactive</div><canvas id="chartActivity" height="170"></canvas></div>
-    <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Connected vs Not Connected</div><canvas id="chartConnect" height="170"></canvas></div>
-    <div class="chart-card"><div class="kpi-label" style="margin-bottom:8px;">Growth vs Degrowth</div><canvas id="chartGrowth" height="170"></canvas></div>
-  </div>
-</section>
-
-<!-- ======= ALL PARTNERS ======= -->
-<section class="tab-pane" id="pane-all">
-  <div class="kpi-row" id="kpiRow"></div>
-  <div class="filter-bar">
-    <input type="text" id="fSearch" placeholder="Search name / GID / city…"/>
-    <select id="fState"><option value="">All states</option></select>
-    <select id="fCity"><option value="">All cities</option></select>
-    <select id="fOwner"><option value="">All owners</option></select>
-    <select id="fOwnerRole"><option value="">All roles</option><option value="ZH">ZH</option><option value="RH">RH</option><option value="SH">SH</option><option value="RM">RM</option><option value="AM">AM</option></select>
-    <select id="fActive"><option value="">All status</option><option value="active">Active</option><option value="inactive">Inactive</option></select>
-    <select id="fGrowth"><option value="">All trend</option><option value="growth">Growth</option><option value="degrowth">Degrowth</option></select>
-    <select id="fConnect"><option value="">All connect</option><option value="connected">Connected</option><option value="notconnected">Not connected</option></select>
-    <select id="fBusiness"><option value="">All MTD ranges</option><option value="0">₹0</option><option value="0-100000">&lt;₹1L</option><option value="100000-500000">₹1L–₹5L</option><option value="500000-1000000">₹5L–₹10L</option><option value="1000000-">&gt;₹10L</option></select>
-    <button class="btn-ghost" id="btnClearFilters">Clear</button>
-    <button class="btn-primary" id="btnExportCsv">Export CSV</button>
-  </div>
-  <div class="filter-count" id="filterCount"></div>
-  <div class="table-wrap">
-    <table class="ptable" id="partnerTable">
-      <thead><tr>
-        <th>Partner</th><th>City / State</th><th>Owner</th>
-        <th>Max Pot.</th><th>Overall Pot.</th><th>Target</th>
-        <!-- REMOVED: Action column -->
-        <th>MTD (May'26)</th><th>LMTD (Apr'26)</th><th>MoM%</th>
-        <th>Growth</th><th>Status</th><th>Connect</th>
-        <th>Calls</th><th>Visits</th>
-      </tr></thead>
-      <tbody id="partnerTbody"></tbody>
-    </table>
-  </div>
-</section>
-
-<!-- ======= MY PARTNERS ======= -->
-<section class="tab-pane" id="pane-mine">
-  <div class="kpi-row" id="kpiRowMine"></div>
-  <div class="filter-bar">
-    <input type="text" id="fSearchMine" placeholder="Search…"/>
-    <select id="fStateMine"><option value="">All states</option></select>
-    <select id="fActiveMine"><option value="">All status</option><option value="active">Active</option><option value="inactive">Inactive</option></select>
-    <select id="fConnectMine"><option value="">All connect</option><option value="connected">Connected</option><option value="notconnected">Not connected</option></select>
-    <button class="btn-ghost" id="btnClearMine">Clear</button>
-  </div>
-  <div class="table-wrap">
-    <table class="ptable">
-      <thead><tr>
-        <th>Partner</th><th>City/State</th><th>Max Pot.</th><th>Overall Pot.</th>
-        <th>Target</th><th>MTD</th><th>LMTD</th><th>MoM%</th>
-        <!-- REMOVED: Action column -->
-        <th>Growth</th><th>Status</th><th>Connect</th><th>Calls</th><th>Visits</th>
-      </tr></thead>
-      <tbody id="mineTbody"></tbody>
-    </table>
-  </div>
-</section>
-
-<!-- ======= TEAM PERFORMANCE (was previously "Team Performance" + separate "AM Performance") ======= -->
-<!-- AM Performance tab REMOVED — Team Performance covers everything -->
-<section class="tab-pane" id="pane-team">
-  <h2 class="section-title">Team Performance</h2>
-  <p class="section-sub">All team members in your zone — AM, RM, SH, RH. Click Details for partner drill-down.</p>
-  <div class="filter-bar">
-    <select id="fTeamRole"><option value="">All roles</option><option value="RH">RH</option><option value="SH">SH</option><option value="RM">RM</option><option value="AM">AM</option></select>
-    <input type="text" id="fTeamSearch" placeholder="Search member…"/>
-    <select id="fTeamState"><option value="">All states</option></select>
-  </div>
-  <div class="team-grid" id="teamGrid"></div>
-</section>
-
-<!-- REMOVED: AM Performance section (pane-am) -->
-<!-- REMOVED: Daily Run Rate section (pane-runrate / DRR) -->
-
-<!-- ======= PARTNER MODAL ======= -->
-<div class="modal hidden" id="partnerModal">
-  <div class="modal-backdrop" id="modalBackdrop"></div>
-  <div class="modal-window">
-    <button class="modal-close" id="modalClose">×</button>
-    <div id="modalBody"></div>
-  </div>
-</div>
-
-<script src="config.js"></script>
-<script src="app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+  <script>
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+        document.querySelectorAll('.tab-section').forEach(function(s){ s.style.display='none'; s.classList.remove('active-section'); });
+        btn.classList.add('active');
+        var target = document.getElementById(btn.dataset.target);
+        if (target) { target.style.display='block'; target.classList.add('active-section'); }
+        // Member partner table only shows after a member link is clicked
+        if (btn.dataset.target !== 'teamSection') {
+          var mTitle = document.getElementById('memberPartnersTitle');
+          var mTable = document.getElementById('memberPartnersTable');
+          if (mTitle) mTitle.style.display = 'none';
+          if (mTable) mTable.style.display = 'none';
+        }
+      });
+    });
+  </script>
 </body>
 </html>
