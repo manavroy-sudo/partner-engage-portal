@@ -1,0 +1,155 @@
+/* ====================================================================
+   style.css — v9 ADDITIONS: Call/Visit Tracker Components
+   ====================================================================
+   Paste these lines at the BOTTOM of your existing style.css file.
+   ==================================================================== */
+
+/* ── My Activity Card (dashboard.html individual view) ────────────── */
+.my-activity-wrapper {
+  margin: 0 0 24px;
+}
+.activity-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px 24px;
+  box-shadow: 0 1px 5px rgba(0,0,0,.08);
+  border-left: 5px solid #2563eb;
+}
+.activity-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.activity-icon { font-size: 1.2rem; }
+.activity-title { font-size: .95rem; font-weight: 700; color: #1e293b; }
+
+.activity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.activity-stat {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 12px 14px;
+  text-align: center;
+}
+.activity-stat .ast-label {
+  font-size: .72rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  margin-bottom: 6px;
+}
+.activity-stat .ast-value {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+.activity-stat .ast-value.green  { color: #16a34a; }
+.activity-stat .ast-value.red    { color: #dc2626; }
+.activity-stat .ast-value.blue   { color: #2563eb; }
+.activity-stat .ast-value.amber  { color: #d97706; }
+.activity-stat .ast-value.neutral{ color: #1e293b; }
+.activity-stat .ast-sub {
+  font-size: .72rem;
+  color: #94a3b8;
+  margin-top: 3px;
+}
+
+/* Progress rows inside activity card */
+.activity-progress { margin-top: 6px; }
+.act-prog-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.act-prog-label {
+  font-size: .78rem;
+  color: #64748b;
+  width: 110px;
+  flex-shrink: 0;
+}
+.act-prog-wrap {
+  flex: 1;
+  background: #e2e8f0;
+  border-radius: 20px;
+  height: 8px;
+}
+.act-prog-fill {
+  height: 8px;
+  border-radius: 20px;
+  transition: width .5s ease;
+}
+.act-prog-fill.called  { background: linear-gradient(90deg, #2563eb, #60a5fa); }
+.act-prog-fill.visited { background: linear-gradient(90deg, #16a34a, #4ade80); }
+.act-prog-pct {
+  font-size: .8rem;
+  font-weight: 700;
+  color: #1e293b;
+  width: 36px;
+  text-align: right;
+}
+
+/* ── Master dashboard Call/Visit tab progress bars ─────────────────── */
+.prog-wrap {
+  background: #e2e8f0;
+  border-radius: 20px;
+  height: 7px;
+  min-width: 70px;
+  margin-top: 4px;
+}
+.prog-fill {
+  height: 7px;
+  border-radius: 20px;
+  transition: width .4s;
+}
+.prog-fill.called  { background: #2563eb; }
+.prog-fill.visited { background: #16a34a; }
+.prog-fill.amber   { background: #d97706; }
+
+/* ── % badges ─────────────────────────────────────────────────────── */
+.pct-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: .75rem;
+  font-weight: 700;
+}
+.pct-badge.high   { background: #dcfce7; color: #16a34a; }
+.pct-badge.medium { background: #fef9c3; color: #854d0e; }
+.pct-badge.low    { background: #fee2e2; color: #dc2626; }
+
+/* ── Rank badges ──────────────────────────────────────────────────── */
+.rank {
+  display: inline-flex;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  align-items: center; justify-content: center;
+  font-size: .72rem; font-weight: 700;
+}
+.rank.r1 { background: #fbbf24; color: #fff; }
+.rank.r2 { background: #94a3b8; color: #fff; }
+.rank.r3 { background: #d97706; color: #fff; }
+.rank.rn { background: #e2e8f0; color: #475569; }
+
+/* ── Zone card accents (already in master.html but add as fallback) ─ */
+.zone-card.north { border-top-color: #2563eb; }
+.zone-card.south { border-top-color: #16a34a; }
+.zone-card.east  { border-top-color: #9333ea; }
+.zone-card.west  { border-top-color: #ea580c; }
+.zone-card.ron   { border-top-color: #0891b2; }
+.zone-card.tele  { border-top-color: #be185d; }
+
+/* Responsive tweaks */
+@media (max-width: 600px) {
+  .activity-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .act-prog-label { width: 90px; font-size: .72rem; }
+}
+/* ====================================================================
+   END OF v9 style.css ADDITIONS
+   ==================================================================== */

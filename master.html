@@ -2,185 +2,260 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Partner Engage — Master Dashboard</title>
   <link rel="stylesheet" href="style.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
-    /* Master-specific overrides */
-    .master-tab-wrap{background:#fff;border-bottom:2px solid #e2e8f0;padding:0 20px;display:flex;gap:4px;overflow-x:auto;position:sticky;top:52px;z-index:90}
-    .master-tab{padding:12px 18px;border:none;background:none;font-size:13px;font-weight:600;color:#64748b;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:color .2s,border-color .2s}
-    .master-tab.active{color:#3b82f6;border-bottom-color:#3b82f6}
-    .master-tab:hover:not(.active){color:#1e293b}
-    .master-content{display:none;padding:20px}
-    .master-content.active{display:block}
+    /* ── Master-page scoped overrides ───────────────────────────── */
+    body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; }
 
-    /* Overall KPI banner */
-    .overall-banner{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;padding:20px;background:linear-gradient(135deg,#1e293b,#334155);margin-bottom:0}
-    .banner-card{background:rgba(255,255,255,.07);border-radius:12px;padding:14px;border:1px solid rgba(255,255,255,.1)}
-    .banner-label{font-size:11px;color:rgba(255,255,255,.55);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
-    .banner-value{font-size:20px;font-weight:800;color:#fff;margin-top:4px}
-    .banner-sub{font-size:11px;color:rgba(255,255,255,.4);margin-top:2px}
+    /* Header */
+    .master-header {
+      background: linear-gradient(135deg, #1a2a6c, #b21f1f);
+      color: #fff;
+      padding: 18px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .master-header h1 { margin: 0; font-size: 1.4rem; font-weight: 700; }
+    .master-header .hdr-sub { font-size: .8rem; opacity: .8; margin-top: 3px; }
+    .logout-btn {
+      background: rgba(255,255,255,.15);
+      border: 1px solid rgba(255,255,255,.4);
+      color: #fff; padding: 6px 18px; border-radius: 6px;
+      cursor: pointer; font-size: .85rem;
+    }
+    .logout-btn:hover { background: rgba(255,255,255,.25); }
 
-    /* Zone cards */
-    .zone-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px}
-    .z-card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,.07);border:1px solid #e8edf2;cursor:pointer;transition:transform .15s,box-shadow .15s}
-    .z-card:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,0,0,.1)}
-    .z-name{font-size:16px;font-weight:800;color:#1e293b;margin-bottom:12px}
-    .z-ach{font-size:22px;font-weight:900}
-    .z-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-    .z-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9}
-    .z-stat-label{font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase}
-    .z-stat-val{font-size:13px;font-weight:700;color:#1e293b;margin-top:2px}
-    .z-bar{height:5px;background:#e2e8f0;border-radius:5px;margin-top:12px;overflow:hidden}
-    .z-bar-fill{height:100%;border-radius:5px}
-    .ach-color{color:#16a34a}
-    .ach-mid{color:#f59e0b}
-    .ach-low{color:#ef4444}
+    /* Tab nav */
+    .tab-nav {
+      display: flex; gap: 0;
+      background: #fff;
+      border-bottom: 2px solid #e2e8f0;
+      padding: 0 24px;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      padding: 14px 22px;
+      background: none; border: none;
+      font-size: .88rem; font-weight: 600;
+      color: #64748b; cursor: pointer;
+      border-bottom: 3px solid transparent;
+      white-space: nowrap; transition: all .2s;
+    }
+    .tab-btn:hover { color: #1e40af; }
+    .tab-btn.active { color: #1e40af; border-bottom-color: #1e40af; }
 
-    /* All Partners master table */
-    .master-filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+    /* Tab content */
+    .tab-pane { display: none; padding: 28px 32px; }
+    .tab-pane.active { display: block; }
 
-    /* Call Tracker */
-    .tracker-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:20px}
-    .tracker-card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);border:1px solid #e8edf2}
-    .tracker-label{font-size:12px;color:#64748b;font-weight:600;margin-bottom:4px}
-    .tracker-val{font-size:28px;font-weight:800;color:#1e293b}
+    /* KPI cards */
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(170px,1fr)); gap: 16px; margin-bottom: 28px; }
+    .kpi-card {
+      background: #fff; border-radius: 12px;
+      padding: 18px 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.07);
+    }
+    .kpi-card .kpi-label { font-size: .75rem; color: #64748b; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+    .kpi-card .kpi-value { font-size: 1.7rem; font-weight: 700; color: #1e293b; }
+    .kpi-card .kpi-sub   { font-size: .78rem; color: #94a3b8; margin-top: 4px; }
+    .kpi-card.green .kpi-value { color: #16a34a; }
+    .kpi-card.red   .kpi-value { color: #dc2626; }
+    .kpi-card.blue  .kpi-value { color: #2563eb; }
+    .kpi-card.amber .kpi-value { color: #d97706; }
+
+    /* Section titles */
+    .section-title {
+      font-size: 1rem; font-weight: 700; color: #1e293b;
+      margin: 24px 0 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .section-title::after {
+      content: ''; flex: 1;
+      height: 1px; background: #e2e8f0;
+    }
+
+    /* Tables */
+    .data-table-wrap { overflow-x: auto; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+    .data-table { width: 100%; border-collapse: collapse; background: #fff; }
+    .data-table th {
+      background: #f8fafc; padding: 11px 14px;
+      text-align: left; font-size: .8rem;
+      font-weight: 700; color: #475569;
+      border-bottom: 2px solid #e2e8f0;
+      white-space: nowrap;
+    }
+    .data-table td {
+      padding: 10px 14px; font-size: .85rem;
+      color: #334155; border-bottom: 1px solid #f1f5f9;
+    }
+    .data-table tr:last-child td { border-bottom: none; }
+    .data-table tr:hover td { background: #f8fafc; }
+
+    /* Progress bar */
+    .prog-wrap { background: #e2e8f0; border-radius: 20px; height: 8px; min-width: 80px; }
+    .prog-fill  { height: 8px; border-radius: 20px; transition: width .4s; }
+    .prog-fill.called  { background: #2563eb; }
+    .prog-fill.visited { background: #16a34a; }
+    .prog-fill.amber   { background: #d97706; }
+
+    /* Zone cards grid */
+    .zone-cards { display: grid; grid-template-columns: repeat(auto-fill,minmax(280px,1fr)); gap: 18px; margin-bottom: 28px; }
+    .zone-card {
+      background: #fff; border-radius: 14px; padding: 20px 22px;
+      box-shadow: 0 1px 5px rgba(0,0,0,.08);
+      border-top: 4px solid #2563eb;
+    }
+    .zone-card.north { border-top-color: #2563eb; }
+    .zone-card.south { border-top-color: #16a34a; }
+    .zone-card.east  { border-top-color: #9333ea; }
+    .zone-card.west  { border-top-color: #ea580c; }
+    .zone-card.ron   { border-top-color: #0891b2; }
+    .zone-card.tele  { border-top-color: #be185d; }
+    .zone-card h3 { margin: 0 0 14px; font-size: .95rem; color: #1e293b; }
+    .zone-card .zh-tag { font-size: .72rem; color: #64748b; margin-top: -10px; margin-bottom: 12px; }
+    .zone-stat-row { display: flex; justify-content: space-between; margin-bottom: 10px; }
+    .zone-stat-row .zsr-label { font-size: .78rem; color: #64748b; }
+    .zone-stat-row .zsr-val   { font-size: .85rem; font-weight: 700; color: #1e293b; }
+
+    /* Owner role selector */
+    .role-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .role-tab-btn {
+      padding: 7px 18px; border-radius: 20px;
+      border: 2px solid #e2e8f0; background: #fff;
+      font-size: .82rem; font-weight: 600; color: #64748b;
+      cursor: pointer; transition: all .2s;
+    }
+    .role-tab-btn:hover  { border-color: #93c5fd; color: #1e40af; }
+    .role-tab-btn.active { border-color: #2563eb; background: #2563eb; color: #fff; }
+
+    /* Loader */
+    .tab-loader {
+      display: flex; align-items: center; justify-content: center;
+      height: 200px; color: #94a3b8; font-size: 1rem;
+      gap: 10px;
+    }
+    .spinner {
+      width: 24px; height: 24px; border: 3px solid #e2e8f0;
+      border-top-color: #2563eb; border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Charts */
+    .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
+    .chart-card { background: #fff; border-radius: 12px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+    .chart-card h4 { margin: 0 0 14px; font-size: .9rem; color: #1e293b; }
+    @media(max-width:768px){ .chart-grid{grid-template-columns:1fr;} .zone-cards{grid-template-columns:1fr;} }
+
+    /* Rank badge */
+    .rank { display:inline-flex; width:22px; height:22px; border-radius:50%; align-items:center; justify-content:center; font-size:.72rem; font-weight:700; }
+    .rank.r1{background:#fbbf24;color:#fff;} .rank.r2{background:#94a3b8;color:#fff;} .rank.r3{background:#d97706;color:#fff;} .rank.rn{background:#e2e8f0;color:#475569;}
+
+    /* % badge */
+    .pct-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:.75rem; font-weight:700; }
+    .pct-badge.high   { background:#dcfce7; color:#16a34a; }
+    .pct-badge.medium { background:#fef9c3; color:#854d0e; }
+    .pct-badge.low    { background:#fee2e2; color:#dc2626; }
   </style>
 </head>
 <body>
 
-<!-- Loader -->
-<div class="loader-overlay" id="loader">
-  <div class="spinner"></div>
-  <div class="loader-text">Loading master dashboard…</div>
-</div>
-
-<!-- Header -->
-<header class="master-header">
+<!-- ═══════════════ HEADER ════════════════════════════════════════ -->
+<div class="master-header">
   <div>
-    <span class="logo-text">Partner Engage</span>
-    <span class="header-sub">InsuranceDekho · Master View</span>
+    <h1>🏢 Partner Engage — National Dashboard</h1>
+    <div class="hdr-sub">Central Team · All Zones · Read-Only View</div>
   </div>
-  <div class="header-right">
-    <span class="header-name" id="headerName"></span>
-    <span class="header-role">MASTER</span>
-    <button class="btn-logout" id="btnLogout">Logout</button>
-  </div>
-</header>
-
-<!-- Overall Banner -->
-<div class="overall-banner" id="overallBanner">
-  <div class="banner-card"><div class="banner-label">Total Partners</div><div class="banner-value" id="bTotal">—</div></div>
-  <div class="banner-card"><div class="banner-label">Active</div><div class="banner-value" id="bActive">—</div></div>
-  <div class="banner-card"><div class="banner-label">FTD</div><div class="banner-value" id="bFtd">—</div></div>
-  <div class="banner-card"><div class="banner-label">MTD Business</div><div class="banner-value" id="bMtd">—</div></div>
-  <div class="banner-card"><div class="banner-label">LMTD</div><div class="banner-value" id="bLmtd">—</div></div>
-  <div class="banner-card"><div class="banner-label">Target (May)</div><div class="banner-value" id="bTarget">—</div></div>
-  <div class="banner-card"><div class="banner-label">Achievement</div><div class="banner-value" id="bAch">—</div></div>
-  <div class="banner-card"><div class="banner-label">MoM%</div><div class="banner-value" id="bMom">—</div></div>
-  <div class="banner-card"><div class="banner-label">Total Calls</div><div class="banner-value" id="bCalls">—</div></div>
-  <div class="banner-card"><div class="banner-label">Total Visits</div><div class="banner-value" id="bVisits">—</div></div>
+  <button class="logout-btn" onclick="logout()">Logout</button>
 </div>
 
-<!-- Master Tabs -->
-<div class="master-tab-wrap">
-  <button class="master-tab active" data-tab="zones">📍 Zone Overview</button>
-  <button class="master-tab" data-tab="partners">👥 All Partners</button>
-  <button class="master-tab" data-tab="am">📊 AM Performance</button>
-  <button class="master-tab" data-tab="team">🏢 Team Breakdown</button>
-  <button class="master-tab" data-tab="tracker">📞 Call &amp; Visit Tracker</button>
-  <button class="master-tab" data-tab="charts">📈 Charts</button>
+<!-- ═══════════════ TAB NAVIGATION ═══════════════════════════════ -->
+<div class="tab-nav">
+  <button class="tab-btn active" data-tab="pan-india">🌐 Pan-India Overview</button>
+  <button class="tab-btn" data-tab="zone-perf">📍 Zone Performance</button>
+  <button class="tab-btn" data-tab="callvisit">📞 Call & Visit Tracker</button>
+  <button class="tab-btn" data-tab="role-perf">👥 Role Performance</button>
+  <button class="tab-btn" data-tab="state-perf">🗺️ State Performance</button>
+  <button class="tab-btn" data-tab="login-log">🔐 Login Activity</button>
 </div>
 
-<!-- Status -->
-<div class="status-bar hidden" id="statusBar"></div>
-
-<!-- Zone Overview -->
-<div class="master-content active" id="mc-zones">
-  <div class="zone-grid" id="zoneGrid">
-    <div class="empty-state"><div class="empty-state-icon">📍</div><div class="empty-state-msg">Loading zones…</div></div>
+<!-- ═══════════════ PAN-INDIA OVERVIEW ═══════════════════════════ -->
+<div class="tab-pane active" id="tab-pan-india">
+  <div class="kpi-grid" id="pan-kpis">
+    <div class="tab-loader"><div class="spinner"></div> Loading…</div>
+  </div>
+  <div class="chart-grid">
+    <div class="chart-card"><h4>📊 Zone-wise MTD</h4><canvas id="chartZoneMtd"></canvas></div>
+    <div class="chart-card"><h4>✅ Active vs Inactive by Zone</h4><canvas id="chartZoneActive"></canvas></div>
+    <div class="chart-card"><h4>💰 Max Potential by Zone</h4><canvas id="chartZonePot"></canvas></div>
+    <div class="chart-card"><h4>📈 MTD vs LMTD</h4><canvas id="chartMtdLmtd"></canvas></div>
   </div>
 </div>
 
-<!-- All Partners -->
-<div class="master-content" id="mc-partners">
-  <div class="master-filters">
-    <div class="search-wrap" style="max-width:260px">
-      <span class="search-icon">🔍</span>
-      <input type="text" id="mSearch" placeholder="Search partner…"/>
-    </div>
-    <select class="filter-select" id="mZone"><option value="">All Zones</option></select>
-    <select class="filter-select" id="mState"><option value="">All States</option></select>
-    <select class="filter-select" id="mRole"><option value="">All Roles</option></select>
-    <button class="btn-clear" id="mClear">Clear</button>
-  </div>
-  <div style="font-size:12px;color:#94a3b8;margin-bottom:8px" id="mCount"></div>
-  <div class="table-wrap">
-    <table class="data-table" id="masterTable">
-      <thead>
-        <tr>
-          <th>#</th><th>Partner Name</th><th>Zone</th><th>State</th><th>City</th>
-          <th>Owner Role</th><th>Owner Name</th><th>Status</th><th>Unique</th>
-          <th class="num-col">FTD</th><th class="num-col">MTD</th><th class="num-col">LMTD</th>
-          <th class="num-col">MoM%</th><th class="num-col">Net Combined</th>
-          <th class="num-col">Target</th><th class="num-col">Ach%</th>
-          <th class="num-col">Active Mo.</th><th class="num-col">Calls</th><th class="num-col">Visits</th>
-        </tr>
-      </thead>
-      <tbody id="masterBody"></tbody>
-    </table>
+<!-- ═══════════════ ZONE PERFORMANCE ═══════════════════════════════ -->
+<div class="tab-pane" id="tab-zone-perf">
+  <div id="zone-perf-content">
+    <div class="tab-loader"><div class="spinner"></div> Loading zone data…</div>
   </div>
 </div>
 
-<!-- AM Performance -->
-<div class="master-content" id="mc-am">
-  <div id="amContent"><div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-msg">Loading…</div></div></div>
+<!-- ═══════════════ CALL & VISIT TRACKER (NEW v9) ════════════════ -->
+<div class="tab-pane" id="tab-callvisit">
+  <!-- Overall KPI Row -->
+  <div class="kpi-grid" id="cv-kpi-row">
+    <div class="tab-loader"><div class="spinner"></div> Loading call & visit data…</div>
+  </div>
+
+  <!-- Charts row -->
+  <div class="chart-grid" id="cv-chart-row" style="display:none;">
+    <div class="chart-card"><h4>📞 Called vs Not Called — by Zone</h4><canvas id="chartCvCalled"></canvas></div>
+    <div class="chart-card"><h4>🚶 Visited vs Not Visited — by Zone</h4><canvas id="chartCvVisited"></canvas></div>
+  </div>
+
+  <!-- Zone-wise table -->
+  <div class="section-title" id="cv-zone-title" style="display:none;">📍 Zone-wise Call & Visit Summary</div>
+  <div class="data-table-wrap" id="cv-zone-table-wrap" style="display:none;margin-bottom:28px;"></div>
+
+  <!-- ZH-wise table -->
+  <div class="section-title" id="cv-zh-title" style="display:none;">🎖️ Zone Head (ZH) — Territory Tracker</div>
+  <div class="data-table-wrap" id="cv-zh-table-wrap" style="display:none;margin-bottom:28px;"></div>
+
+  <!-- Owner role tabs -->
+  <div class="section-title" id="cv-owner-title" style="display:none;">👤 Owner-wise Performance</div>
+  <div class="role-tabs" id="cv-role-tabs" style="display:none;">
+    <button class="role-tab-btn active" data-role="AM">Account Manager (AM)</button>
+    <button class="role-tab-btn" data-role="RM">Relationship Manager (RM)</button>
+    <button class="role-tab-btn" data-role="SH">Sales Head (SH)</button>
+    <button class="role-tab-btn" data-role="RH">Regional Head (RH)</button>
+  </div>
+  <div class="data-table-wrap" id="cv-owner-table-wrap" style="display:none;"></div>
 </div>
 
-<!-- Team Breakdown -->
-<div class="master-content" id="mc-team">
-  <div id="teamContent"><div class="empty-state"><div class="empty-state-icon">🏢</div><div class="empty-state-msg">Loading…</div></div></div>
-</div>
-
-<!-- Call & Visit Tracker -->
-<div class="master-content" id="mc-tracker">
-  <div class="tracker-grid" id="trackerGrid"></div>
-  <div class="table-wrap">
-    <table class="data-table" id="trackerTable">
-      <thead>
-        <tr>
-          <th>#</th><th>Name</th><th>Role</th><th>Zone</th>
-          <th class="num-col">Partners</th><th class="num-col">Calls</th>
-          <th class="num-col">Visits</th><th class="num-col">Calls/Partner</th>
-        </tr>
-      </thead>
-      <tbody id="trackerBody"></tbody>
-    </table>
+<!-- ═══════════════ ROLE PERFORMANCE ═════════════════════════════ -->
+<div class="tab-pane" id="tab-role-perf">
+  <div id="role-perf-content">
+    <div class="tab-loader"><div class="spinner"></div> Loading…</div>
   </div>
 </div>
 
-<!-- Charts -->
-<div class="master-content" id="mc-charts">
-  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:16px">
-    <div class="chart-wrap"><div class="chart-title">MTD by Zone</div><canvas id="chartZone" height="220"></canvas></div>
-    <div class="chart-wrap"><div class="chart-title">Achievement % by Zone</div><canvas id="chartAch" height="220"></canvas></div>
-    <div class="chart-wrap"><div class="chart-title">Partner Status Distribution</div><canvas id="chartStatus" height="220"></canvas></div>
-    <div class="chart-wrap"><div class="chart-title">Top 10 AMs by MTD</div><canvas id="chartAM" height="220"></canvas></div>
+<!-- ═══════════════ STATE PERFORMANCE ════════════════════════════ -->
+<div class="tab-pane" id="tab-state-perf">
+  <div id="state-perf-content">
+    <div class="tab-loader"><div class="spinner"></div> Loading…</div>
   </div>
 </div>
 
-<!-- Zone Modal -->
-<div class="modal-overlay" id="zoneModal" style="display:none">
-  <div class="modal-box" style="max-width:800px">
-    <div class="modal-header">
-      <h2 id="zoneModalTitle">Zone Details</h2>
-      <button class="modal-close" id="zoneModalClose">✕</button>
-    </div>
-    <div class="modal-body" id="zoneModalBody"></div>
+<!-- ═══════════════ LOGIN ACTIVITY ═══════════════════════════════ -->
+<div class="tab-pane" id="tab-login-log">
+  <div id="login-log-content">
+    <div class="tab-loader"><div class="spinner"></div> Loading…</div>
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="config.js"></script>
 <script src="master.js"></script>
 </body>
