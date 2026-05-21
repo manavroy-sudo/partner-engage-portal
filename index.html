@@ -1,78 +1,199 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Partner Engage Portal — Login</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Partner Engage — Login</title>
   <style>
-    body { display:flex; align-items:center; justify-content:center; min-height:100vh; background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%); }
-    .login-box { background:#fff; border-radius:16px; padding:40px 36px; width:100%; max-width:380px; box-shadow:0 20px 60px rgba(0,0,0,.3); }
-    .login-logo { font-size:22px; font-weight:800; color:#3b82f6; margin-bottom:4px; }
-    .login-sub  { font-size:13px; color:#64748b; margin-bottom:28px; }
-    .form-group { margin-bottom:16px; }
-    .form-label { font-size:12px; font-weight:600; color:#374151; display:block; margin-bottom:5px; }
-    .form-input {
-      width:100%; padding:10px 14px; border:1px solid #e2e8f0; border-radius:8px;
-      font-size:14px; transition:border .2s; background:#f8fafc;
-    }
-    .form-input:focus { outline:none; border-color:#3b82f6; background:#fff; }
-    .login-btn {
-      width:100%; padding:12px; background:#3b82f6; color:#fff; border:none;
-      border-radius:8px; font-size:15px; font-weight:700; cursor:pointer; margin-top:8px;
-      transition:background .2s;
-    }
-    .login-btn:hover    { background:#2563eb; }
-    .login-btn:disabled { background:#93c5fd; cursor:not-allowed; }
-    .login-error { background:#fef2f2; border:1px solid #fecaca; border-radius:8px; padding:10px 14px; color:#dc2626; font-size:13px; margin-bottom:12px; display:none; }
-    .set-pw-box  { background:#eff6ff; border:1px solid #bfdbfe; border-radius:8px; padding:14px; margin-top:12px; display:none; }
-    .set-pw-box h4 { color:#1d4ed8; font-size:13px; margin-bottom:10px; }
-    #passwordSection { display:none; }
-    .check-btn {
-      width:100%; padding:10px; background:#475569; color:#fff; border:none;
-      border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; margin-top:4px;
-    }
-    .check-btn:hover { background:#334155; }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{min-height:100vh;background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 45%,#0f172a 100%);display:flex;align-items:center;justify-content:center;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden}
+    .bg-orb{position:fixed;border-radius:50%;filter:blur(80px);opacity:.15;pointer-events:none}
+    .orb1{width:400px;height:400px;background:#3b82f6;top:-100px;left:-100px}
+    .orb2{width:300px;height:300px;background:#6366f1;bottom:-80px;right:-80px}
+    .orb3{width:200px;height:200px;background:#06b6d4;top:50%;left:50%;transform:translate(-50%,-50%)}
+    .login-wrap{position:relative;z-index:10;width:100%;max-width:420px;padding:24px}
+    .login-card{background:rgba(255,255,255,.07);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,.12);border-radius:20px;padding:40px 36px;box-shadow:0 25px 50px rgba(0,0,0,.4)}
+    .logo-icon{width:56px;height:56px;background:linear-gradient(135deg,#f97316,#ef4444);border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#fff;margin-bottom:20px;box-shadow:0 8px 24px rgba(249,115,22,.4)}
+    .login-title{font-size:22px;font-weight:700;color:#fff;margin-bottom:4px}
+    .login-sub{font-size:13px;color:rgba(255,255,255,.55);margin-bottom:24px}
+    .alert-box{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.4);border-radius:10px;padding:10px 14px;color:#fca5a5;font-size:13px;margin-bottom:16px;display:none}
+    .alert-box.show{display:block}
+    .field-label{display:block;font-size:11px;font-weight:600;letter-spacing:.08em;color:rgba(255,255,255,.5);text-transform:uppercase;margin-bottom:6px}
+    .field-input{width:100%;padding:12px 14px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:10px;color:#fff;font-size:14px;outline:none;transition:border .2s}
+    .field-input::placeholder{color:rgba(255,255,255,.3)}
+    .field-input:focus{border-color:rgba(99,102,241,.7);background:rgba(255,255,255,.1)}
+    .field-wrap{margin-bottom:16px}
+    .btn-continue{width:100%;padding:13px;background:linear-gradient(135deg,#f97316,#ef4444);border:none;border-radius:10px;color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:opacity .2s,transform .1s;margin-top:4px}
+    .btn-continue:hover{opacity:.9}
+    .btn-continue:active{transform:scale(.98)}
+    .btn-continue:disabled{opacity:.5;cursor:not-allowed}
+    .spinner-inline{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .step-pw{display:none;margin-top:0}
+    .forgot-link{display:block;text-align:center;margin-top:12px;font-size:12px;color:rgba(255,255,255,.4);cursor:pointer}
+    .forgot-link:hover{color:rgba(255,255,255,.7)}
+    .footer-txt{text-align:center;margin-top:20px;font-size:11px;color:rgba(255,255,255,.3)}
+    .footer-txt strong{color:rgba(255,255,255,.5)}
   </style>
 </head>
-<body id="loginPage">
-  <div class="login-box">
-    <div class="login-logo">Partner Engage</div>
-    <div class="login-sub">InsuranceDekho · AM &amp; Above Portal</div>
+<body>
+  <div class="bg-orb orb1"></div>
+  <div class="bg-orb orb2"></div>
+  <div class="bg-orb orb3"></div>
+  <div class="login-wrap">
+    <div class="login-card">
+      <div class="logo-icon">ID</div>
+      <div class="login-title">Welcome back</div>
+      <div class="login-sub">Sign in with your employee ID to continue</div>
 
-    <div id="loginError" class="login-error"></div>
+      <div class="alert-box" id="alertBox"></div>
 
-    <div class="form-group">
-      <label class="form-label">User ID (GID / Employee ID)</label>
-      <input id="gidInput" class="form-input" type="text" placeholder="Enter your User ID" autocomplete="off">
-    </div>
-    <button class="check-btn" onclick="checkGidAndProceed()">Continue →</button>
-
-    <div id="passwordSection">
-      <div class="form-group" style="margin-top:14px;">
-        <label class="form-label">Password</label>
-        <input id="passwordInput" class="form-input" type="password" placeholder="Enter your password">
+      <!-- Step 1: GID -->
+      <div id="stepGid">
+        <div class="field-wrap">
+          <label class="field-label" for="gidInput">Employee / User ID</label>
+          <input class="field-input" id="gidInput" type="text" placeholder="e.g. IDK-YOURNAME" autocomplete="username"/>
+        </div>
+        <button class="btn-continue" id="btnContinue">Continue</button>
       </div>
-      <button id="loginBtn" class="login-btn">
-        <span id="loginSpinner" style="display:none;">⏳ </span>Sign In
-      </button>
-    </div>
 
-    <div id="setPasswordSection" class="set-pw-box">
-      <h4>🔑 Set Your Password (First Time)</h4>
-      <div class="form-group">
-        <label class="form-label">New Password</label>
-        <input id="newPassword" class="form-input" type="password" placeholder="Create a strong password">
+      <!-- Step 2: Password -->
+      <div class="step-pw" id="stepPw">
+        <div class="field-wrap">
+          <label class="field-label" for="pwInput">Password</label>
+          <input class="field-input" id="pwInput" type="password" placeholder="Enter your password" autocomplete="current-password"/>
+        </div>
+        <button class="btn-continue" id="btnLogin">Sign In</button>
+        <span class="forgot-link" id="btnBack">← Change User ID</span>
       </div>
-      <div class="form-group">
-        <label class="form-label">Confirm Password</label>
-        <input id="confirmPassword" class="form-input" type="password" placeholder="Repeat password">
+
+      <!-- Step 3: Set Password (first time) -->
+      <div class="step-pw" id="stepSetPw">
+        <div class="field-wrap">
+          <label class="field-label" for="newPw1">Create Password</label>
+          <input class="field-input" id="newPw1" type="password" placeholder="Minimum 6 characters"/>
+        </div>
+        <div class="field-wrap">
+          <label class="field-label" for="newPw2">Confirm Password</label>
+          <input class="field-input" id="newPw2" type="password" placeholder="Repeat password"/>
+        </div>
+        <button class="btn-continue" id="btnSetPw">Set Password &amp; Sign In</button>
+        <span class="forgot-link" id="btnBack2">← Change User ID</span>
       </div>
-      <button id="savePasswordBtn" class="login-btn">Set Password &amp; Login</button>
     </div>
+    <div class="footer-txt">Secured by <strong>InsuranceDekho</strong> · Partner Performance System</div>
   </div>
 
   <script src="config.js"></script>
-  <script src="app.js"></script>
+  <script>
+    // ── helpers ──────────────────────────────────────────────────────
+    const $ = id => document.getElementById(id);
+    let currentGid = '';
+
+    function showAlert(msg) {
+      $('alertBox').textContent = msg;
+      $('alertBox').classList.add('show');
+    }
+    function hideAlert() {
+      $('alertBox').classList.remove('show');
+    }
+    function setLoading(btn, on) {
+      btn.disabled = on;
+      btn.dataset.orig = btn.dataset.orig || btn.textContent;
+      btn.innerHTML = on
+        ? `<span class="spinner-inline"></span>Please wait…`
+        : btn.dataset.orig;
+    }
+    function showStep(name) {
+      ['stepGid','stepPw','stepSetPw'].forEach(id => {
+        const el = $(id);
+        el.style.display = 'none';
+        el.classList.remove('step-pw');
+      });
+      const target = $(name);
+      target.style.display = 'block';
+    }
+    async function sha256(text) {
+      const buf = new TextEncoder().encode(text);
+      const hash = await crypto.subtle.digest('SHA-256', buf);
+      return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
+    }
+    function goToDashboard(user) {
+      sessionStorage.setItem('peUser', JSON.stringify(user));
+      if (user.role === 'MASTER') location.href = 'master.html';
+      else location.href = 'dashboard.html';
+    }
+
+    // ── Step 1: Check GID ────────────────────────────────────────────
+    $('btnContinue').addEventListener('click', async () => {
+      const gid = $('gidInput').value.trim();
+      if (!gid) { showAlert('Please enter your Employee / User ID.'); return; }
+      hideAlert();
+      setLoading($('btnContinue'), true);
+      try {
+        const res = await fetch(API_URL + '?action=checkPassword&gid=' + encodeURIComponent(gid)).then(r => r.json());
+        if (!res.success) { showAlert(res.message || 'User not found.'); setLoading($('btnContinue'), false); return; }
+        currentGid = gid;
+        setLoading($('btnContinue'), false);
+        if (res.hasPassword) {
+          showStep('stepPw');
+          setTimeout(() => $('pwInput').focus(), 50);
+        } else {
+          showStep('stepSetPw');
+          setTimeout(() => $('newPw1').focus(), 50);
+        }
+      } catch(e) {
+        showAlert('Connection error. Please check your internet and try again.');
+        setLoading($('btnContinue'), false);
+      }
+    });
+
+    $('gidInput').addEventListener('keydown', e => { if(e.key==='Enter') $('btnContinue').click(); });
+
+    // ── Step 2: Login ────────────────────────────────────────────────
+    $('btnLogin').addEventListener('click', async () => {
+      const pw = $('pwInput').value;
+      if (!pw) { showAlert('Please enter your password.'); return; }
+      hideAlert();
+      setLoading($('btnLogin'), true);
+      try {
+        const hash = await sha256(pw);
+        const res = await fetch(API_URL + '?action=login&gid=' + encodeURIComponent(currentGid) + '&password=' + encodeURIComponent(hash)).then(r => r.json());
+        if (!res.success) { showAlert(res.message || 'Incorrect password.'); setLoading($('btnLogin'), false); return; }
+        goToDashboard(res.user);
+      } catch(e) {
+        showAlert('Connection error. Please try again.');
+        setLoading($('btnLogin'), false);
+      }
+    });
+
+    $('pwInput').addEventListener('keydown', e => { if(e.key==='Enter') $('btnLogin').click(); });
+    $('btnBack').addEventListener('click', () => { hideAlert(); showStep('stepGid'); });
+
+    // ── Step 3: Set Password ─────────────────────────────────────────
+    $('btnSetPw').addEventListener('click', async () => {
+      const p1 = $('newPw1').value, p2 = $('newPw2').value;
+      if (!p1 || p1.length < 6) { showAlert('Password must be at least 6 characters.'); return; }
+      if (p1 !== p2) { showAlert('Passwords do not match.'); return; }
+      hideAlert();
+      setLoading($('btnSetPw'), true);
+      try {
+        const hash = await sha256(p1);
+        const r1 = await fetch(API_URL + '?action=setPassword&gid=' + encodeURIComponent(currentGid) + '&newPassword=' + encodeURIComponent(hash)).then(r => r.json());
+        if (!r1.success) { showAlert(r1.message || 'Failed to set password.'); setLoading($('btnSetPw'), false); return; }
+        const r2 = await fetch(API_URL + '?action=login&gid=' + encodeURIComponent(currentGid) + '&password=' + encodeURIComponent(hash)).then(r => r.json());
+        if (!r2.success) { showAlert('Password set but login failed. Please try signing in.'); setLoading($('btnSetPw'), false); return; }
+        goToDashboard(r2.user);
+      } catch(e) {
+        showAlert('Connection error. Please try again.');
+        setLoading($('btnSetPw'), false);
+      }
+    });
+
+    $('btnBack2').addEventListener('click', () => { hideAlert(); showStep('stepGid'); });
+
+    // Start at step 1
+    showStep('stepGid');
+  </script>
 </body>
 </html>

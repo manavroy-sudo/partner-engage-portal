@@ -1,60 +1,187 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Master Dashboard — Partner Engage</title>
-  <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Partner Engage — Master Dashboard</title>
+  <link rel="stylesheet" href="style.css"/>
+  <style>
+    /* Master-specific overrides */
+    .master-tab-wrap{background:#fff;border-bottom:2px solid #e2e8f0;padding:0 20px;display:flex;gap:4px;overflow-x:auto;position:sticky;top:52px;z-index:90}
+    .master-tab{padding:12px 18px;border:none;background:none;font-size:13px;font-weight:600;color:#64748b;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px;white-space:nowrap;transition:color .2s,border-color .2s}
+    .master-tab.active{color:#3b82f6;border-bottom-color:#3b82f6}
+    .master-tab:hover:not(.active){color:#1e293b}
+    .master-content{display:none;padding:20px}
+    .master-content.active{display:block}
+
+    /* Overall KPI banner */
+    .overall-banner{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;padding:20px;background:linear-gradient(135deg,#1e293b,#334155);margin-bottom:0}
+    .banner-card{background:rgba(255,255,255,.07);border-radius:12px;padding:14px;border:1px solid rgba(255,255,255,.1)}
+    .banner-label{font-size:11px;color:rgba(255,255,255,.55);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+    .banner-value{font-size:20px;font-weight:800;color:#fff;margin-top:4px}
+    .banner-sub{font-size:11px;color:rgba(255,255,255,.4);margin-top:2px}
+
+    /* Zone cards */
+    .zone-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:16px}
+    .z-card{background:#fff;border-radius:14px;padding:18px;box-shadow:0 2px 8px rgba(0,0,0,.07);border:1px solid #e8edf2;cursor:pointer;transition:transform .15s,box-shadow .15s}
+    .z-card:hover{transform:translateY(-3px);box-shadow:0 8px 20px rgba(0,0,0,.1)}
+    .z-name{font-size:16px;font-weight:800;color:#1e293b;margin-bottom:12px}
+    .z-ach{font-size:22px;font-weight:900}
+    .z-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+    .z-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid #f1f5f9}
+    .z-stat-label{font-size:10px;color:#94a3b8;font-weight:600;text-transform:uppercase}
+    .z-stat-val{font-size:13px;font-weight:700;color:#1e293b;margin-top:2px}
+    .z-bar{height:5px;background:#e2e8f0;border-radius:5px;margin-top:12px;overflow:hidden}
+    .z-bar-fill{height:100%;border-radius:5px}
+    .ach-color{color:#16a34a}
+    .ach-mid{color:#f59e0b}
+    .ach-low{color:#ef4444}
+
+    /* All Partners master table */
+    .master-filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+
+    /* Call Tracker */
+    .tracker-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:20px}
+    .tracker-card{background:#fff;border-radius:12px;padding:16px;box-shadow:0 1px 4px rgba(0,0,0,.06);border:1px solid #e8edf2}
+    .tracker-label{font-size:12px;color:#64748b;font-weight:600;margin-bottom:4px}
+    .tracker-val{font-size:28px;font-weight:800;color:#1e293b}
+  </style>
 </head>
-<body class="master-body">
+<body>
 
-  <div id="masterLoader" class="loader-overlay" style="display:none;">
-    <div class="spinner"></div><p>Loading national data…</p>
+<!-- Loader -->
+<div class="loader-overlay" id="loader">
+  <div class="spinner"></div>
+  <div class="loader-text">Loading master dashboard…</div>
+</div>
+
+<!-- Header -->
+<header class="master-header">
+  <div>
+    <span class="logo-text">Partner Engage</span>
+    <span class="header-sub">InsuranceDekho · Master View</span>
   </div>
+  <div class="header-right">
+    <span class="header-name" id="headerName"></span>
+    <span class="header-role">MASTER</span>
+    <button class="btn-logout" id="btnLogout">Logout</button>
+  </div>
+</header>
 
-  <!-- Header -->
-  <header class="master-header">
-    <div id="masterHeader" class="master-header-text">Partner Engage Portal — National Command Centre</div>
-    <div class="master-header-right">
-      <button onclick="window.location.href='dashboard.html'" class="btn-outline">← My Dashboard</button>
-      <button id="logoutBtn" class="btn-outline">Logout</button>
+<!-- Overall Banner -->
+<div class="overall-banner" id="overallBanner">
+  <div class="banner-card"><div class="banner-label">Total Partners</div><div class="banner-value" id="bTotal">—</div></div>
+  <div class="banner-card"><div class="banner-label">Active</div><div class="banner-value" id="bActive">—</div></div>
+  <div class="banner-card"><div class="banner-label">FTD</div><div class="banner-value" id="bFtd">—</div></div>
+  <div class="banner-card"><div class="banner-label">MTD Business</div><div class="banner-value" id="bMtd">—</div></div>
+  <div class="banner-card"><div class="banner-label">LMTD</div><div class="banner-value" id="bLmtd">—</div></div>
+  <div class="banner-card"><div class="banner-label">Target (May)</div><div class="banner-value" id="bTarget">—</div></div>
+  <div class="banner-card"><div class="banner-label">Achievement</div><div class="banner-value" id="bAch">—</div></div>
+  <div class="banner-card"><div class="banner-label">MoM%</div><div class="banner-value" id="bMom">—</div></div>
+  <div class="banner-card"><div class="banner-label">Total Calls</div><div class="banner-value" id="bCalls">—</div></div>
+  <div class="banner-card"><div class="banner-label">Total Visits</div><div class="banner-value" id="bVisits">—</div></div>
+</div>
+
+<!-- Master Tabs -->
+<div class="master-tab-wrap">
+  <button class="master-tab active" data-tab="zones">📍 Zone Overview</button>
+  <button class="master-tab" data-tab="partners">👥 All Partners</button>
+  <button class="master-tab" data-tab="am">📊 AM Performance</button>
+  <button class="master-tab" data-tab="team">🏢 Team Breakdown</button>
+  <button class="master-tab" data-tab="tracker">📞 Call &amp; Visit Tracker</button>
+  <button class="master-tab" data-tab="charts">📈 Charts</button>
+</div>
+
+<!-- Status -->
+<div class="status-bar hidden" id="statusBar"></div>
+
+<!-- Zone Overview -->
+<div class="master-content active" id="mc-zones">
+  <div class="zone-grid" id="zoneGrid">
+    <div class="empty-state"><div class="empty-state-icon">📍</div><div class="empty-state-msg">Loading zones…</div></div>
+  </div>
+</div>
+
+<!-- All Partners -->
+<div class="master-content" id="mc-partners">
+  <div class="master-filters">
+    <div class="search-wrap" style="max-width:260px">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="mSearch" placeholder="Search partner…"/>
     </div>
-  </header>
-
-  <!-- Master KPI Strip -->
-  <div id="masterKpiStrip" class="kpi-strip master-kpi-strip"></div>
-
-  <!-- Tabs -->
-  <div class="master-tabs">
-    <button class="master-tab-btn" data-tab="tabPanIndia">🇮🇳 Pan-India</button>
-    <button class="master-tab-btn" data-tab="tabZone">🗺️ Zone Performance</button>
-    <button class="master-tab-btn" data-tab="tabRole">👤 Role Performance</button>
-    <button class="master-tab-btn" data-tab="tabState">📍 State Performance</button>
-    <button class="master-tab-btn" data-tab="tabConnect">📞 Call &amp; Visit Tracker</button>
-    <button class="master-tab-btn" data-tab="tabLogin">🔐 Login Activity</button>
+    <select class="filter-select" id="mZone"><option value="">All Zones</option></select>
+    <select class="filter-select" id="mState"><option value="">All States</option></select>
+    <select class="filter-select" id="mRole"><option value="">All Roles</option></select>
+    <button class="btn-clear" id="mClear">Clear</button>
   </div>
+  <div style="font-size:12px;color:#94a3b8;margin-bottom:8px" id="mCount"></div>
+  <div class="table-wrap">
+    <table class="data-table" id="masterTable">
+      <thead>
+        <tr>
+          <th>#</th><th>Partner Name</th><th>Zone</th><th>State</th><th>City</th>
+          <th>Owner Role</th><th>Owner Name</th><th>Status</th><th>Unique</th>
+          <th class="num-col">FTD</th><th class="num-col">MTD</th><th class="num-col">LMTD</th>
+          <th class="num-col">MoM%</th><th class="num-col">Net Combined</th>
+          <th class="num-col">Target</th><th class="num-col">Ach%</th>
+          <th class="num-col">Active Mo.</th><th class="num-col">Calls</th><th class="num-col">Visits</th>
+        </tr>
+      </thead>
+      <tbody id="masterBody"></tbody>
+    </table>
+  </div>
+</div>
 
-  <!-- Tab Contents -->
-  <div class="master-tab-content" id="tabPanIndia" style="display:none;"></div>
-  <div class="master-tab-content" id="tabZone"     style="display:none;"></div>
-  <div class="master-tab-content" id="tabRole"     style="display:none;"></div>
-  <div class="master-tab-content" id="tabState"    style="display:none;"></div>
-  <div class="master-tab-content" id="tabConnect"  style="display:none;"></div>
-  <div class="master-tab-content" id="tabLogin"    style="display:none;"></div>
+<!-- AM Performance -->
+<div class="master-content" id="mc-am">
+  <div id="amContent"><div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-msg">Loading…</div></div></div>
+</div>
 
-  <!-- Zone Team Breakdown Modal -->
-  <div id="zoneModal" class="modal-overlay" style="display:none;">
-    <div class="modal-box modal-wide">
-      <div class="modal-header">
-        <h2 id="zoneModalTitle">Team Breakdown</h2>
-        <button id="zoneModalClose" class="modal-close-btn">✕</button>
-      </div>
-      <div id="zoneModalBody" class="zone-modal-body"></div>
+<!-- Team Breakdown -->
+<div class="master-content" id="mc-team">
+  <div id="teamContent"><div class="empty-state"><div class="empty-state-icon">🏢</div><div class="empty-state-msg">Loading…</div></div></div>
+</div>
+
+<!-- Call & Visit Tracker -->
+<div class="master-content" id="mc-tracker">
+  <div class="tracker-grid" id="trackerGrid"></div>
+  <div class="table-wrap">
+    <table class="data-table" id="trackerTable">
+      <thead>
+        <tr>
+          <th>#</th><th>Name</th><th>Role</th><th>Zone</th>
+          <th class="num-col">Partners</th><th class="num-col">Calls</th>
+          <th class="num-col">Visits</th><th class="num-col">Calls/Partner</th>
+        </tr>
+      </thead>
+      <tbody id="trackerBody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Charts -->
+<div class="master-content" id="mc-charts">
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(400px,1fr));gap:16px">
+    <div class="chart-wrap"><div class="chart-title">MTD by Zone</div><canvas id="chartZone" height="220"></canvas></div>
+    <div class="chart-wrap"><div class="chart-title">Achievement % by Zone</div><canvas id="chartAch" height="220"></canvas></div>
+    <div class="chart-wrap"><div class="chart-title">Partner Status Distribution</div><canvas id="chartStatus" height="220"></canvas></div>
+    <div class="chart-wrap"><div class="chart-title">Top 10 AMs by MTD</div><canvas id="chartAM" height="220"></canvas></div>
+  </div>
+</div>
+
+<!-- Zone Modal -->
+<div class="modal-overlay" id="zoneModal" style="display:none">
+  <div class="modal-box" style="max-width:800px">
+    <div class="modal-header">
+      <h2 id="zoneModalTitle">Zone Details</h2>
+      <button class="modal-close" id="zoneModalClose">✕</button>
     </div>
+    <div class="modal-body" id="zoneModalBody"></div>
   </div>
+</div>
 
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="config.js"></script>
-  <script src="master.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="config.js"></script>
+<script src="master.js"></script>
 </body>
 </html>

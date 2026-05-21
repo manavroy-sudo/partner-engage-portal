@@ -1,479 +1,343 @@
 // ====================================================================
-// app.js v10 — Individual Dashboard Logic
-// NEW: FTD, Net Combined Premium, Active Months, Zone col F
+// app.js v10 — Partner Engage Dashboard Logic
 // ====================================================================
 
-var API_URL = (typeof CONFIG !== 'undefined' && CONFIG.API_URL) ? CONFIG.API_URL : '';
-var _dashData  = null;
-var _allRows   = [];
+(function () {
+  'use strict';
 
-// ========================= UTILS ====================================
-function fmt(n)  { return Number(n||0).toLocaleString('en-IN'); }
-function fmtL(n) { var v=Number(n||0); if(v>=10000000)return (v/10000000).toFixed(2)+'Cr'; if(v>=100000)return (v/100000).toFixed(2)+'L'; return v.toLocaleString('en-IN'); }
-function pctStr(n){ return (Number(n||0)>=0?'+':'')+Number(n||0)+'%'; }
+  // ── Session check ────────────────────────────────────────────────
+  const peUser = JSON.parse(sessionStorage.getItem('peUser') || 'null');
+  if (!peUser) { location.href = 'index.html'; return; }
 
-async function sha256(msg) {
-  var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(msg));
-  return Array.from(new Uint8Array(buf)).map(function(b){ return b.toString(16).padStart(2,'0'); }).join('');
-}
+  // ── Helpers ──────────────────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+  const fmtINR = n => {
+    n = Number(n) || 0;
+    if (n >= 1e7) return '₹' + (n / 1e7).toFixed(2) + ' Cr';
+    if (n >= 1e5) return '₹' + (n / 1e5).toFixed(2) + ' L';
+    if (n >= 1e3) return '₹' + (n / 1e3).toFixed(1) + 'K';
+    return '₹' + Math.round(n).toLocaleString('en-IN');
+  };
+  const fmtN = n => Number(n || 0).toLocaleString('en-IN');
+  const safe = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const statusBadge = s => {
+    const m = {'Active':'green','Inactive':'red','New':'blue','Dormant':'yellow'};
+    const cls = m[s] || 'gray';
+    return `<span class="badge badge-${cls}">${safe(s)}</span>`;
+  };
 
-// ========================= LOGIN ====================================
+  // ── Header ───────────────────────────────────────────────────────
+  $('headerName').textContent = peUser.name || peUser.gid;
+  $('headerRole').textContent = peUser.role || '';
+  $('btnLogout').addEventListener('click', () => {
+    sessionStorage.removeItem('peUser');
+    location.href = 'index.html';
+  });
 
-document.addEventListener('DOMContentLoaded', function() {
-  var loginPage = document.getElementById('loginPage');
-  if (loginPage) initLoginPage();
+  // ── Status bar ───────────────────────────────────────────────────
+  function setStatus(msg, kind) {
+    const bar = $('statusBar');
+    bar.textContent = msg || '';
+    bar.className = 'status-bar' + (kind ? ' ' + kind : '') + (!msg ? ' hidden' : '');
+  }
 
-  var dashPage = document.getElementById('dashboardPage');
-  if (dashPage) initDashboardPage();
-});
-
-function initLoginPage() {
-  var gid = sessionStorage.getItem('gid');
-  if (gid) { redirectAfterLogin(sessionStorage.getItem('role')); return; }
-
-  var gidInput = document.getElementById('gidInput');
-  var pwInput  = document.getElementById('passwordInput');
-  var btn      = document.getElementById('loginBtn');
-  var errEl    = document.getElementById('loginError');
-
-  if (gidInput) gidInput.addEventListener('keydown', function(e){ if(e.key==='Enter') checkGidAndProceed(); });
-  if (btn) btn.addEventListener('click', handleLoginAttempt);
-  if (pwInput) pwInput.addEventListener('keydown', function(e){ if(e.key==='Enter') handleLoginAttempt(); });
-}
-
-function checkGidAndProceed() {
-  var gid = document.getElementById('gidInput').value.trim();
-  if (!gid) return;
-  fetch(API_URL + '?action=checkPassword&gid=' + encodeURIComponent(gid))
-    .then(function(r){ return r.json(); })
-    .then(function(d) {
-      if (!d.success) { showLoginError(d.message); return; }
-      if (!d.hasPassword) { showSetPasswordUI(gid); }
-      else { document.getElementById('passwordSection').style.display = 'block'; }
+  // ── Tabs ─────────────────────────────────────────────────────────
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      $('tab-' + btn.dataset.tab).classList.add('active');
     });
-}
+  });
 
-async function handleLoginAttempt() {
-  var gid  = (document.getElementById('gidInput')  || {}).value || '';
-  var pass = (document.getElementById('passwordInput') || {}).value || '';
-  if (!gid || !pass) { showLoginError('Enter both User ID and password.'); return; }
-  var hash = await sha256(pass);
-  setLoginLoading(true);
-  fetch(API_URL + '?action=login&gid=' + encodeURIComponent(gid) + '&password=' + encodeURIComponent(hash))
-    .then(function(r){ return r.json(); })
-    .then(function(d) {
-      setLoginLoading(false);
-      if (!d.success) { showLoginError(d.message); return; }
-      sessionStorage.setItem('gid',  d.user.gid);
-      sessionStorage.setItem('name', d.user.name);
-      sessionStorage.setItem('role', d.user.role);
-      sessionStorage.setItem('zone', d.user.zone);
-      redirectAfterLogin(d.user.role);
-    })
-    .catch(function(){ setLoginLoading(false); showLoginError('Network error. Try again.'); });
-}
+  // ── Data state ───────────────────────────────────────────────────
+  let allPartners = [];
+  let filtered = [];
 
-function redirectAfterLogin(role) {
-  if (role === 'MASTER') { window.location.href = 'master.html'; }
-  else                   { window.location.href = 'dashboard.html'; }
-}
-
-function showLoginError(msg) {
-  var el = document.getElementById('loginError');
-  if (el) { el.textContent = msg; el.style.display = 'block'; }
-}
-
-function setLoginLoading(on) {
-  var btn = document.getElementById('loginBtn');
-  if (btn) btn.disabled = on;
-  var sp  = document.getElementById('loginSpinner');
-  if (sp)  sp.style.display = on ? 'inline-block' : 'none';
-}
-
-async function showSetPasswordUI(gid) {
-  var section = document.getElementById('setPasswordSection');
-  if (!section) return;
-  section.style.display = 'block';
-  var saveBtn = document.getElementById('savePasswordBtn');
-  if (saveBtn) saveBtn.addEventListener('click', async function() {
-    var np = document.getElementById('newPassword').value;
-    var cp = document.getElementById('confirmPassword').value;
-    if (!np || np !== cp) { showLoginError('Passwords do not match.'); return; }
-    var hash = await sha256(np);
-    fetch(API_URL + '?action=setPassword&gid=' + encodeURIComponent(gid) + '&oldPassword=&newPassword=' + encodeURIComponent(hash))
-      .then(function(r){ return r.json(); })
-      .then(function(d) {
-        if (!d.success) { showLoginError(d.message); return; }
-        sessionStorage.setItem('gid', gid);
-        document.getElementById('passwordInput').value = np;
-        handleLoginAttempt();
+  // ── Load data ────────────────────────────────────────────────────
+  function load() {
+    setStatus('Loading data…', 'loading');
+    fetch(API_URL + '?action=getPartners&gid=' + encodeURIComponent(peUser.gid))
+      .then(r => r.json())
+      .then(res => {
+        $('loader').style.display = 'none';
+        if (!res.success) { setStatus(res.message || 'Failed to load data.', 'error'); return; }
+        setStatus('', '');
+        allPartners = res.partners || [];
+        buildFilters();
+        applyFilters();
+        renderKPIs(allPartners, 'kpiGrid');
+        renderMyPartners();
+        renderTeam();
+        renderAM();
+      })
+      .catch(e => {
+        $('loader').style.display = 'none';
+        setStatus('Connection error: ' + e.message, 'error');
       });
-  });
-}
-
-// ========================= DASHBOARD ================================
-
-function initDashboardPage() {
-  var gid = sessionStorage.getItem('gid');
-  if (!gid) { window.location.href = 'index.html'; return; }
-
-  var nameEl = document.getElementById('userName');
-  if (nameEl) nameEl.textContent = sessionStorage.getItem('name') || '';
-  var roleEl = document.getElementById('userRole');
-  if (roleEl) roleEl.textContent = sessionStorage.getItem('role') || '';
-
-  var logoutBtn = document.getElementById('logoutBtn');
-  if (logoutBtn) logoutBtn.addEventListener('click', function() {
-    sessionStorage.clear(); window.location.href = 'index.html';
-  });
-  var masterBtn = document.getElementById('masterBtn');
-  if (masterBtn) {
-    if (sessionStorage.getItem('role') === 'MASTER') masterBtn.style.display = 'inline-block';
-    masterBtn.addEventListener('click', function(){ window.location.href = 'master.html'; });
   }
 
-  loadDashboard(gid);
-}
+  // ── Build filter dropdowns ────────────────────────────────────────
+  function buildFilters() {
+    const zones = [...new Set(allPartners.map(p => p.zone).filter(Boolean))].sort();
+    const states = [...new Set(allPartners.map(p => p.state).filter(Boolean))].sort();
+    const owners = [...new Set(allPartners.map(p => p.ownerName).filter(Boolean))].sort();
 
-function loadDashboard(gid) {
-  showLoader(true);
-  fetch(API_URL + '?action=getDashboard&gid=' + encodeURIComponent(gid))
-    .then(function(r){ return r.json(); })
-    .then(function(data) {
-      showLoader(false);
-      if (!data.success) { alert('Error: ' + data.message); return; }
-      _dashData = data;
-      _allRows  = data.partners || [];
-      renderDashboard(data);
-    })
-    .catch(function(err){ showLoader(false); alert('Network error: '+err); });
-}
-
-function showLoader(show) {
-  var el = document.getElementById('dashLoader');
-  if (el) el.style.display = show ? 'flex' : 'none';
-}
-
-// ========================= RENDER DASHBOARD =========================
-
-function renderDashboard(data) {
-  var o   = data.overallProject || {};
-  var s   = data.summary        || {};
-  var user = data.user          || {};
-
-  // KPI Strip
-  renderKpiStrip(s, o, user);
-
-  // My Activity card (for non-master)
-  renderMyActivity(data);
-
-  // All Partners table
-  buildTable(_allRows, 'partnersTable', data.filterOptions);
-
-  // My Partners
-  if (data.myPartners && data.myPartners.length) {
-    buildTable(data.myPartners, 'myPartnersTable', null);
+    populateSelect($('filterZone'), zones, 'All Zones');
+    populateSelect($('filterState'), states, 'All States');
+    populateSelect($('filterOwner'), owners, 'All Owners');
+  }
+  function populateSelect(sel, vals, allLabel) {
+    sel.innerHTML = `<option value="">${allLabel}</option>` + vals.map(v => `<option value="${safe(v)}">${safe(v)}</option>`).join('');
   }
 
-  // Team Breakdown
-  if (data.teamBreakdown) renderTeamBreakdown(data.teamBreakdown, user);
-
-  // AM Performance
-  if (data.amPerformance) renderAmPerformance(data.amPerformance);
-
-  // Filters
-  setupFilters(data.filterOptions);
-}
-
-function renderKpiStrip(s, o, user) {
-  var el = document.getElementById('kpiStrip');
-  if (!el) return;
-  var mom = Number(s.momPct || 0);
-  el.innerHTML =
-    kpi('FTD',                  fmtL(o.ftd),                 '',                     '') +
-    kpi('MTD',                  fmtL(o.businessGenerated),   '',                     '') +
-    kpi('LMTD',                 fmtL(o.lmtd),               '',                     '') +
-    kpi('Net Combined Premium', fmtL(o.netCombinedPremium),  '(Apr\'25→Apr\'26)',    'kpi-accent') +
-    kpi('Target (May)',         fmtL(o.target),               '',                     '') +
-    kpi('Achievement',          (o.achievementPct||0)+'%',   'vs target',            o.achievementPct>=80?'kpi-pos':'kpi-neg') +
-    kpi('MoM',                  pctStr(mom),                 'vs LMTD',             mom>=0?'kpi-pos':'kpi-neg') +
-    kpi('Partners',             fmt(o.totalPartners),         '',                    '') +
-    kpi('Active',               fmt(o.activePartners),       s.activePct+'%',        'kpi-pos') +
-    kpi('Growth',               fmt(o.growthCount),           s.growthPct+'%',        'kpi-pos') +
-    kpi('Connected',            fmt(o.connectedPartners),    s.engagementPct+'%',    'kpi-pos') +
-    kpi('Avg Active Months',    o.avgActiveMonths || 0,       'per partner',          '');
-}
-
-function kpi(label, value, sub, cls) {
-  return '<div class="kpi-card"><div class="kpi-label">'+label+'</div><div class="kpi-value '+(cls||'')+'">'+value+'</div>'+(sub?'<div class="kpi-sub">'+sub+'</div>':'')+'</div>';
-}
-
-// ========================= MY ACTIVITY ==============================
-
-function renderMyActivity(data) {
-  var el = document.getElementById('myActivityCard');
-  if (!el) return;
-  var role = (data.user || {}).role;
-  if (role === 'MASTER') { el.style.display = 'none'; return; }
-
-  var gid = sessionStorage.getItem('gid');
-  el.innerHTML = '<div class="activity-header">My Activity</div><div id="activityInner"><div class="loader-text">Loading...</div></div>';
-  el.style.display = 'block';
-
-  fetch(API_URL + '?action=getCallVisitStats&gid=' + encodeURIComponent(gid))
-    .then(function(r){ return r.json(); })
-    .then(function(d) {
-      if (!d.success) { document.getElementById('activityInner').innerHTML = 'Could not load activity.'; return; }
-      var o = d.overall || {};
-      var callPct  = o.total>0?Math.round(o.called/o.total*100):0;
-      var visitPct = o.total>0?Math.round(o.visited/o.total*100):0;
-      document.getElementById('activityInner').innerHTML =
-        '<div class="act-grid">' +
-          actItem('My Partners', fmt(o.total)) +
-          actItem('Called', fmt(o.called) + ' ('+callPct+'%)') +
-          actItem('Not Called', fmt(o.notCalled)) +
-          actItem('Visited', fmt(o.visited) + ' ('+visitPct+'%)') +
-          actItem('Not Visited', fmt(o.notVisited)) +
-          actItem('Total Calls', fmt(o.callsSum)) +
-          actItem('Total Visits', fmt(o.visitsSum)) +
-        '</div>';
-    })
-    .catch(function(){ document.getElementById('activityInner').innerHTML = 'Activity unavailable.'; });
-}
-
-function actItem(label, value) {
-  return '<div class="act-item"><span class="act-label">'+label+'</span><span class="act-value">'+value+'</span></div>';
-}
-
-// ========================= PARTNER TABLE ============================
-
-function buildTable(rows, tableId, filterOptions) {
-  var tbody = document.querySelector('#'+tableId+' tbody');
-  if (!tbody) return;
-  tbody.innerHTML = '';
-
-  rows.forEach(function(p, i) {
-    var mom = p.currentMonth - p.prevMonth;
-    var momPct = p.prevMonth > 0 ? Math.round(mom / p.prevMonth * 100) : (p.currentMonth > 0 ? 100 : 0);
-    var ach    = p.target > 0 ? Math.round(p.currentMonth / p.target * 100) : 0;
-
-    var tr = document.createElement('tr');
-    tr.innerHTML =
-      '<td>'+(i+1)+'</td>' +
-      '<td><a href="#" class="partner-link" data-gid="'+p.gid+'">'+p.name+'</a></td>' +
-      '<td>'+p.zone+'</td>' +
-      '<td>'+p.state+'</td>' +
-      '<td>'+p.city+'</td>' +
-      '<td>'+p.ownerRole+'</td>' +
-      '<td>'+p.ownerName+'</td>' +
-      '<td class="'+(p.isActive?'kpi-pos':'kpi-neg')+'">'+(p.isActive?'Active':'Inactive')+'</td>' +
-      '<td>'+(p.uniqueStatus||'')+'</td>' +
-      '<td class="num">'+fmtL(p.ftd)+'</td>' +
-      '<td class="num">'+fmtL(p.currentMonth)+'</td>' +
-      '<td class="num">'+fmtL(p.prevMonth)+'</td>' +
-      '<td class="num '+(momPct>=0?'kpi-pos':'kpi-neg')+'">'+pctStr(momPct)+'</td>' +
-      '<td class="num">'+fmtL(p.netCombinedPremium)+'</td>' +
-      '<td class="num">'+fmtL(p.target)+'</td>' +
-      '<td class="num '+(ach>=80?'kpi-pos':'kpi-neg')+'">'+ach+'%</td>' +
-      '<td class="num">'+p.activeMonthsCount+'</td>' +
-      '<td class="num">'+fmtL(p.activeMonthsBiz)+'</td>' +
-      '<td class="num">'+p.calls+'</td>' +
-      '<td class="num">'+p.visits+'</td>';
-    tr.querySelector('.partner-link').addEventListener('click', function(e) {
-      e.preventDefault(); openPartnerModal(p);
-    });
-    tbody.appendChild(tr);
+  // ── Filter listeners ──────────────────────────────────────────────
+  ['searchInput','filterZone','filterState','filterOwner'].forEach(id => {
+    $(id).addEventListener('input', applyFilters);
+    $(id).addEventListener('change', applyFilters);
   });
-}
-
-// ========================= PARTNER MODAL ============================
-
-function openPartnerModal(p) {
-  var modal = document.getElementById('partnerModal');
-  if (!modal) return;
-
-  var mom    = p.currentMonth - p.prevMonth;
-  var momPct = p.prevMonth > 0 ? Math.round(mom / p.prevMonth * 100) : (p.currentMonth > 0 ? 100 : 0);
-  var ach    = p.target > 0 ? Math.round(p.currentMonth / p.target * 100) : 0;
-  var maxAch = p.maxPotential > 0 ? Math.round(p.currentMonth / p.maxPotential * 100) : 0;
-
-  document.getElementById('modalPartnerName').textContent = p.name + ' (' + p.gid + ')';
-
-  var kpiEl = document.getElementById('modalKpis');
-  if (kpiEl) kpiEl.innerHTML =
-    modalKpi('Zone',               p.zone,                                     '') +
-    modalKpi('State / City',       p.state + ' / ' + p.city,                   '') +
-    modalKpi('Owner',              p.ownerRole + ': ' + p.ownerName,           '') +
-    modalKpi('Unique Status',      p.uniqueStatus || '—',                       '') +
-    modalKpi('FTD',                fmtL(p.ftd),                                p.ftd > 0 ? 'pos':'') +
-    modalKpi('MTD',                fmtL(p.currentMonth),                       p.currentMonth > 0 ? 'pos':'neg') +
-    modalKpi('LMTD',               fmtL(p.prevMonth),                          '') +
-    modalKpi('MoM Change',         pctStr(momPct),                             momPct >= 0 ? 'pos':'neg') +
-    modalKpi('Net Combined Premium',fmtL(p.netCombinedPremium),                'accent') +
-    modalKpi('Active Months',      p.activeMonthsCount + ' / 13',              p.activeMonthsCount >= 6 ? 'pos':'neg') +
-    modalKpi('Active Months Biz',  fmtL(p.activeMonthsBiz),                    '') +
-    modalKpi('Target (May)',        fmtL(p.target),                             '') +
-    modalKpi('Achievement',         ach + '%',                                   ach >= 80 ? 'pos':'neg') +
-    modalKpi('Max Potential',       fmtL(p.maxPotential),                       '') +
-    modalKpi('Max Pot Ach%',        maxAch + '%',                                '') +
-    modalKpi('Overall Potential',   fmtL(p.overallPotential),                   '') +
-    modalKpi('Active',              p.isActive ? 'Active' : 'Inactive',         p.isActive ? 'pos':'neg') +
-    modalKpi('Growth',              p.isGrowth ? 'Growth' : 'Degrowth',         p.isGrowth ? 'pos':'neg') +
-    modalKpi('Calls',               p.calls,                                     p.calls > 0 ? 'pos':'') +
-    modalKpi('Visits',              p.visits,                                    p.visits > 0 ? 'pos':'');
-
-  // Monthly chart
-  renderMonthlyChart(p.monthlyData);
-
-  // Remark
-  var remarkEl = document.getElementById('remarkText');
-  if (remarkEl) remarkEl.value = p.remark || '';
-  var saveBtn  = document.getElementById('saveRemarkBtn');
-  if (saveBtn) {
-    saveBtn.onclick = function() { saveRemark(p.gid, remarkEl.value); };
-  }
-
-  modal.style.display = 'flex';
-}
-
-function modalKpi(label, value, type) {
-  var cls = type === 'pos' ? 'kpi-pos' : type === 'neg' ? 'kpi-neg' : type === 'accent' ? 'kpi-accent' : '';
-  return '<div class="modal-kpi"><span class="mk-label">'+label+'</span><span class="mk-val '+cls+'">'+value+'</span></div>';
-}
-
-var _monthChart = null;
-function renderMonthlyChart(monthlyData) {
-  var ctx = document.getElementById('monthlyChart');
-  if (!ctx) return;
-  if (_monthChart) _monthChart.destroy();
-  var labels = ['Apr\'25','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan\'26','Feb','Mar','Apr\'26'];
-  _monthChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: labels,
-      datasets: [{ label: 'Monthly Premium', data: monthlyData || [], backgroundColor: '#4F8EF7', borderRadius: 4 }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: false } },
-      scales: { y: { ticks: { callback: function(v){ return fmtL(v); } } } }
-    }
+  $('btnClear').addEventListener('click', () => {
+    $('searchInput').value = '';
+    $('filterZone').value = '';
+    $('filterState').value = '';
+    $('filterOwner').value = '';
+    applyFilters();
   });
-}
-
-function saveRemark(partnerGid, remark) {
-  var gid = sessionStorage.getItem('gid');
-  fetch(API_URL + '?action=saveRemark&gid='+encodeURIComponent(gid)+'&partnerGid='+encodeURIComponent(partnerGid)+'&remark='+encodeURIComponent(remark))
-    .then(function(r){ return r.json(); })
-    .then(function(d){ alert(d.success ? 'Remark saved!' : 'Error: '+d.message); });
-}
-
-// Modal close
-document.addEventListener('DOMContentLoaded', function() {
-  var modal = document.getElementById('partnerModal');
-  var closeBtn = document.getElementById('modalClose');
-  if (closeBtn && modal) closeBtn.addEventListener('click', function(){ modal.style.display='none'; });
-  if (modal) modal.addEventListener('click', function(e){ if(e.target===modal) modal.style.display='none'; });
-});
-
-// ========================= TEAM BREAKDOWN ===========================
-
-function renderTeamBreakdown(breakdown, user) {
-  var cont = document.getElementById('teamBreakdownContainer');
-  if (!cont || !breakdown || !breakdown.length) return;
-  var html = '<table class="team-table"><thead><tr><th>Role</th><th>Name</th><th>Partners</th><th>FTD</th><th>MTD</th><th>LMTD</th><th>Net Combined</th><th>Target</th><th>Ach%</th><th>MoM%</th><th>Active</th><th>Calls</th><th>Visits</th></tr></thead><tbody>';
-  breakdown.forEach(function(m) {
-    var s = m.summary||{}; var o = m.overallProject||{};
-    html += '<tr><td>'+m.role+'</td><td><a href="#" class="member-link" data-role="'+m.role+'" data-name="'+m.name+'">'+m.name+'</a></td><td>'+m.partners.length+'</td><td>'+fmtL(o.ftd)+'</td><td>'+fmtL(o.businessGenerated)+'</td><td>'+fmtL(o.lmtd)+'</td><td class="kpi-accent">'+fmtL(o.netCombinedPremium)+'</td><td>'+fmtL(o.target)+'</td><td class="'+(o.achievementPct>=80?'kpi-pos':'kpi-neg')+'">'+o.achievementPct+'%</td><td class="'+(s.momPct>=0?'kpi-pos':'kpi-neg')+'">'+pctStr(s.momPct)+'</td><td>'+o.activePartners+'</td><td>'+o.calls+'</td><td>'+o.visits+'</td></tr>';
-  });
-  html += '</tbody></table>';
-  cont.innerHTML = html;
-
-  cont.querySelectorAll('.member-link').forEach(function(link) {
-    link.addEventListener('click', function(e) {
-      e.preventDefault();
-      var memberEntry = breakdown.find(function(m){ return m.role===link.dataset.role && m.name===link.dataset.name; });
-      if (memberEntry) {
-        buildTable(memberEntry.partners, 'memberPartnersTable', null);
-        var mTitle = document.getElementById('memberPartnersTitle');
-        var mTable = document.getElementById('memberPartnersTable');
-        if (mTitle) { mTitle.textContent = link.dataset.name + '\'s Partners'; mTitle.style.display = 'block'; }
-        if (mTable) mTable.style.display = 'table';
-        mTable && mTable.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    });
-  });
-}
-
-// ========================= AM PERFORMANCE ===========================
-
-function renderAmPerformance(amPerf) {
-  var cont = document.getElementById('amPerfContainer');
-  if (!cont || !amPerf || !amPerf.length) return;
-  var html = '<table class="am-table"><thead><tr><th>#</th><th>AM Name</th><th>Zone</th><th>Partners</th><th>FTD</th><th>MTD</th><th>LMTD</th><th>Net Combined</th><th>Target</th><th>Ach%</th><th>Active</th><th>Calls</th><th>Visits</th><th>Avg Active Months</th></tr></thead><tbody>';
-  amPerf.forEach(function(am, i) {
-    var s = am.summary||{}; var o = am.overallProject||{};
-    html += '<tr><td>'+(i+1)+'</td><td>'+am.name+'</td><td>'+am.zone+'</td><td>'+am.partners.length+'</td><td>'+fmtL(o.ftd)+'</td><td>'+fmtL(o.businessGenerated)+'</td><td>'+fmtL(o.lmtd)+'</td><td class="kpi-accent">'+fmtL(o.netCombinedPremium)+'</td><td>'+fmtL(o.target)+'</td><td class="'+(o.achievementPct>=80?'kpi-pos':'kpi-neg')+'">'+o.achievementPct+'%</td><td>'+o.activePartners+'</td><td>'+o.calls+'</td><td>'+o.visits+'</td><td>'+o.avgActiveMonths+'</td></tr>';
-  });
-  html += '</tbody></table>';
-  cont.innerHTML = html;
-}
-
-// ========================= FILTERS ==================================
-
-function setupFilters(filterOptions) {
-  if (!filterOptions) return;
-
-  var zoneFilter  = document.getElementById('filterZone');
-  var stateFilter = document.getElementById('filterState');
-  var ownerFilter = document.getElementById('filterOwner');
-  var searchInput = document.getElementById('searchInput');
-
-  if (zoneFilter && filterOptions.zones) {
-    filterOptions.zones.forEach(function(z) {
-      var opt = document.createElement('option'); opt.value = z; opt.textContent = z;
-      zoneFilter.appendChild(opt);
-    });
-  }
-  if (stateFilter && filterOptions.states) {
-    filterOptions.states.forEach(function(s) {
-      var opt = document.createElement('option'); opt.value = s; opt.textContent = s;
-      stateFilter.appendChild(opt);
-    });
-  }
-  if (ownerFilter && filterOptions.owners) {
-    filterOptions.owners.forEach(function(o) {
-      var opt = document.createElement('option'); opt.value = o; opt.textContent = o;
-      ownerFilter.appendChild(opt);
-    });
-  }
 
   function applyFilters() {
-    var zf = zoneFilter  ? zoneFilter.value.toLowerCase()  : '';
-    var sf = stateFilter ? stateFilter.value.toLowerCase() : '';
-    var of = ownerFilter ? ownerFilter.value.toLowerCase() : '';
-    var kw = searchInput ? searchInput.value.toLowerCase() : '';
-    var filtered = _allRows.filter(function(p) {
-      if (zf && (p.zone||'').toLowerCase()      !== zf) return false;
-      if (sf && (p.state||'').toLowerCase()     !== sf) return false;
-      if (of && (p.ownerName||'').toLowerCase() !== of) return false;
-      if (kw && (p.name||'').toLowerCase().indexOf(kw) === -1 && (p.gid||'').toLowerCase().indexOf(kw) === -1) return false;
+    const q = ($('searchInput').value || '').toLowerCase();
+    const zone = $('filterZone').value;
+    const state = $('filterState').value;
+    const owner = $('filterOwner').value;
+
+    filtered = allPartners.filter(p => {
+      if (q && !((p.name || '').toLowerCase().includes(q) || (p.gcd || '').toLowerCase().includes(q))) return false;
+      if (zone && p.zone !== zone) return false;
+      if (state && p.state !== state) return false;
+      if (owner && p.ownerName !== owner) return false;
       return true;
     });
-    buildTable(filtered, 'partnersTable', null);
+
+    renderTable(filtered);
+    renderKPIs(filtered, 'kpiGrid');
   }
 
-  [zoneFilter, stateFilter, ownerFilter].forEach(function(el) {
-    if (el) el.addEventListener('change', applyFilters);
-  });
-  if (searchInput) searchInput.addEventListener('input', applyFilters);
+  // ── Render table ──────────────────────────────────────────────────
+  function renderTable(rows) {
+    const tbody = $('partnerBody');
+    if (!rows.length) {
+      tbody.innerHTML = '';
+      $('tableEmpty').style.display = 'block';
+      $('tableCount').textContent = '';
+      return;
+    }
+    $('tableEmpty').style.display = 'none';
+    $('tableCount').textContent = `Showing ${rows.length} of ${allPartners.length} partners`;
 
-  var clearBtn = document.getElementById('clearFiltersBtn');
-  if (clearBtn) clearBtn.addEventListener('click', function() {
-    if (zoneFilter)  zoneFilter.value  = '';
-    if (stateFilter) stateFilter.value = '';
-    if (ownerFilter) ownerFilter.value = '';
-    if (searchInput) searchInput.value = '';
-    buildTable(_allRows, 'partnersTable', null);
-  });
-}
+    tbody.innerHTML = rows.map((p, i) => `
+      <tr style="cursor:pointer" data-idx="${allPartners.indexOf(p)}">
+        <td>${i + 1}</td>
+        <td><strong>${safe(p.name)}</strong>${p.gcd ? `<br><small style="color:#94a3b8">${safe(p.gcd)}</small>` : ''}</td>
+        <td>${safe(p.zone)}</td>
+        <td>${safe(p.state)}</td>
+        <td>${safe(p.city)}</td>
+        <td><span class="badge badge-gray">${safe(p.ownerRole)}</span></td>
+        <td>${safe(p.ownerName)}</td>
+        <td>${statusBadge(p.status)}</td>
+        <td>${statusBadge(p.uniqueStatus)}</td>
+        <td class="num-col">${fmtINR(p.ftd)}</td>
+        <td class="num-col">${fmtINR(p.mtd)}</td>
+        <td class="num-col">${fmtINR(p.lmtd)}</td>
+        <td class="num-col ${Number(p.mom) >= 0 ? 'kpi-pos' : 'kpi-neg'}">${Number(p.mom || 0).toFixed(1)}%</td>
+        <td class="num-col">${fmtINR(p.netCombined)}</td>
+        <td class="num-col">${fmtINR(p.target)}</td>
+        <td class="num-col ${Number(p.ach) >= 100 ? 'kpi-pos' : ''}">${Number(p.ach || 0).toFixed(1)}%</td>
+        <td class="num-col">${fmtN(p.activeMonths)}</td>
+        <td class="num-col">${fmtINR(p.activeBiz)}</td>
+        <td class="num-col">${fmtN(p.calls)}</td>
+        <td class="num-col">${fmtN(p.visits)}</td>
+      </tr>
+    `).join('');
+
+    tbody.querySelectorAll('tr').forEach(tr => {
+      tr.addEventListener('click', () => openModal(allPartners[+tr.dataset.idx]));
+    });
+  }
+
+  // ── KPI cards ─────────────────────────────────────────────────────
+  function renderKPIs(rows, gridId) {
+    const total = rows.length;
+    const active = rows.filter(p => (p.status || '').toLowerCase() === 'active').length;
+    const ftd = rows.reduce((s, p) => s + (Number(p.ftd) || 0), 0);
+    const mtd = rows.reduce((s, p) => s + (Number(p.mtd) || 0), 0);
+    const lmtd = rows.reduce((s, p) => s + (Number(p.lmtd) || 0), 0);
+    const target = rows.reduce((s, p) => s + (Number(p.target) || 0), 0);
+    const ach = target > 0 ? (mtd / target * 100).toFixed(1) : '0.0';
+    const mom = lmtd > 0 ? ((mtd - lmtd) / lmtd * 100).toFixed(1) : '0.0';
+
+    $(gridId).innerHTML = `
+      <div class="kpi-card"><div class="kpi-label">Total Partners</div><div class="kpi-value">${total}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Active</div><div class="kpi-value kpi-pos">${active}</div></div>
+      <div class="kpi-card"><div class="kpi-label">FTD Business</div><div class="kpi-value">${fmtINR(ftd)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">MTD Business</div><div class="kpi-value">${fmtINR(mtd)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">LMTD Business</div><div class="kpi-value">${fmtINR(lmtd)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Target (May)</div><div class="kpi-value">${fmtINR(target)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">Achievement</div><div class="kpi-value ${Number(ach) >= 100 ? 'kpi-pos' : ''}">${ach}%</div></div>
+      <div class="kpi-card"><div class="kpi-label">MoM%</div><div class="kpi-value ${Number(mom) >= 0 ? 'kpi-pos' : 'kpi-neg'}">${mom}%</div></div>
+    `;
+  }
+
+  // ── My Partners tab ───────────────────────────────────────────────
+  function renderMyPartners() {
+    const mine = allPartners.filter(p =>
+      (p.ownerName || '').toLowerCase().includes((peUser.name || '').toLowerCase()) ||
+      (p.ownerGid || '') === peUser.gid
+    );
+
+    renderKPIs(mine, 'myKpiGrid');
+
+    const tbody = $('myBody');
+    if (!mine.length) {
+      tbody.innerHTML = `<tr><td colspan="13"><div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-msg">No partners assigned to you</div></div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = mine.map((p, i) => `
+      <tr>
+        <td>${i + 1}</td>
+        <td><strong>${safe(p.name)}</strong></td>
+        <td>${safe(p.zone)}</td>
+        <td>${safe(p.state)}</td>
+        <td>${safe(p.city)}</td>
+        <td class="num-col">${fmtINR(p.ftd)}</td>
+        <td class="num-col">${fmtINR(p.mtd)}</td>
+        <td class="num-col">${fmtINR(p.lmtd)}</td>
+        <td class="num-col ${Number(p.mom) >= 0 ? 'kpi-pos' : 'kpi-neg'}">${Number(p.mom || 0).toFixed(1)}%</td>
+        <td class="num-col">${fmtINR(p.target)}</td>
+        <td class="num-col">${Number(p.ach || 0).toFixed(1)}%</td>
+        <td class="num-col">${fmtN(p.calls)}</td>
+        <td class="num-col">${fmtN(p.visits)}</td>
+      </tr>
+    `).join('');
+  }
+
+  // ── Team Breakdown tab ────────────────────────────────────────────
+  function renderTeam() {
+    const byRole = {};
+    allPartners.forEach(p => {
+      const r = p.ownerRole || 'Unknown';
+      if (!byRole[r]) byRole[r] = { role: r, count: 0, mtd: 0, target: 0 };
+      byRole[r].count++;
+      byRole[r].mtd += Number(p.mtd) || 0;
+      byRole[r].target += Number(p.target) || 0;
+    });
+    const rows = Object.values(byRole).sort((a, b) => b.mtd - a.mtd);
+
+    $('teamContent').innerHTML = `
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>Owner Role</th><th class="num-col">Partners</th><th class="num-col">MTD Business</th><th class="num-col">Target</th><th class="num-col">Achievement</th></tr></thead>
+          <tbody>${rows.map(r => {
+            const ach = r.target > 0 ? (r.mtd / r.target * 100).toFixed(1) : '0.0';
+            return `<tr>
+              <td><span class="badge badge-gray">${safe(r.role)}</span></td>
+              <td class="num-col">${r.count}</td>
+              <td class="num-col">${fmtINR(r.mtd)}</td>
+              <td class="num-col">${fmtINR(r.target)}</td>
+              <td class="num-col ${Number(ach) >= 100 ? 'kpi-pos' : ''}">${ach}%</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>`;
+  }
+
+  // ── AM Performance tab ────────────────────────────────────────────
+  function renderAM() {
+    const byAM = {};
+    allPartners.forEach(p => {
+      if ((p.ownerRole || '') !== 'AM') return;
+      const name = p.ownerName || 'Unknown';
+      if (!byAM[name]) byAM[name] = { name, partners: 0, active: 0, mtd: 0, lmtd: 0, target: 0, calls: 0, visits: 0 };
+      byAM[name].partners++;
+      if ((p.status || '').toLowerCase() === 'active') byAM[name].active++;
+      byAM[name].mtd += Number(p.mtd) || 0;
+      byAM[name].lmtd += Number(p.lmtd) || 0;
+      byAM[name].target += Number(p.target) || 0;
+      byAM[name].calls += Number(p.calls) || 0;
+      byAM[name].visits += Number(p.visits) || 0;
+    });
+
+    const rows = Object.values(byAM).sort((a, b) => b.mtd - a.mtd);
+    if (!rows.length) {
+      $('amContent').innerHTML = `<div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-msg">No AM data available</div></div>`;
+      return;
+    }
+
+    $('amContent').innerHTML = `
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr><th>#</th><th>AM Name</th><th class="num-col">Partners</th><th class="num-col">Active</th><th class="num-col">MTD</th><th class="num-col">LMTD</th><th class="num-col">MoM%</th><th class="num-col">Target</th><th class="num-col">Ach%</th><th class="num-col">Calls</th><th class="num-col">Visits</th></tr></thead>
+          <tbody>${rows.map((r, i) => {
+            const mom = r.lmtd > 0 ? ((r.mtd - r.lmtd) / r.lmtd * 100).toFixed(1) : '0.0';
+            const ach = r.target > 0 ? (r.mtd / r.target * 100).toFixed(1) : '0.0';
+            return `<tr>
+              <td>${i + 1}</td>
+              <td><strong>${safe(r.name)}</strong></td>
+              <td class="num-col">${r.partners}</td>
+              <td class="num-col kpi-pos">${r.active}</td>
+              <td class="num-col">${fmtINR(r.mtd)}</td>
+              <td class="num-col">${fmtINR(r.lmtd)}</td>
+              <td class="num-col ${Number(mom) >= 0 ? 'kpi-pos' : 'kpi-neg'}">${mom}%</td>
+              <td class="num-col">${fmtINR(r.target)}</td>
+              <td class="num-col ${Number(ach) >= 100 ? 'kpi-pos' : ''}">${ach}%</td>
+              <td class="num-col">${fmtN(r.calls)}</td>
+              <td class="num-col">${fmtN(r.visits)}</td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>`;
+  }
+
+  // ── Modal ─────────────────────────────────────────────────────────
+  function openModal(p) {
+    if (!p) return;
+    $('modalTitle').textContent = p.name || 'Partner Details';
+    const mom = Number(p.lmtd) > 0 ? ((Number(p.mtd) - Number(p.lmtd)) / Number(p.lmtd) * 100).toFixed(1) : '0.0';
+    $('modalBody').innerHTML = `
+      <div class="modal-section">
+        <div class="modal-section-title">Partner Info</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:13px">
+          <div><span style="color:#94a3b8">Zone:</span> <strong>${safe(p.zone)}</strong></div>
+          <div><span style="color:#94a3b8">State:</span> <strong>${safe(p.state)}</strong></div>
+          <div><span style="color:#94a3b8">City:</span> <strong>${safe(p.city)}</strong></div>
+          <div><span style="color:#94a3b8">GCD:</span> <strong>${safe(p.gcd)}</strong></div>
+          <div><span style="color:#94a3b8">Status:</span> ${statusBadge(p.status)}</div>
+          <div><span style="color:#94a3b8">Unique:</span> ${statusBadge(p.uniqueStatus)}</div>
+          <div><span style="color:#94a3b8">Owner:</span> <strong>${safe(p.ownerName)} (${safe(p.ownerRole)})</strong></div>
+          <div><span style="color:#94a3b8">Active Months:</span> <strong>${fmtN(p.activeMonths)}</strong></div>
+        </div>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-title">Business Performance</div>
+        <div class="modal-kpi-grid">
+          <div class="modal-kpi"><div class="modal-kpi-label">FTD</div><div class="modal-kpi-val">${fmtINR(p.ftd)}</div></div>
+          <div class="modal-kpi"><div class="modal-kpi-label">MTD</div><div class="modal-kpi-val">${fmtINR(p.mtd)}</div></div>
+          <div class="modal-kpi"><div class="modal-kpi-label">LMTD</div><div class="modal-kpi-val">${fmtINR(p.lmtd)}</div></div>
+          <div class="modal-kpi"><div class="modal-kpi-label">MoM%</div><div class="modal-kpi-val ${Number(mom) >= 0 ? 'kpi-pos' : 'kpi-neg'}">${mom}%</div></div>
+          <div class="modal-kpi"><div class="modal-kpi-label">Net Combined</div><div class="modal-kpi-val">${fmtINR(p.netCombined)}</div></div>
+          <div class="modal-kpi"><div class="modal-kpi-label">Active Business</div><div class="modal-kpi-val">${fmtINR(p.activeBiz)}</div></div>
+          <div class="modal-kpi"><div class="modal-kpi-label">Target</div><div class="modal-kpi-val">${fmtINR(p.target)}</div></div>
+          <div class="modal-kpi"><div class="modal-kpi-label">Achievement</div><div class="modal-kpi-val ${Number(p.ach) >= 100 ? 'kpi-pos' : ''}">${Number(p.ach || 0).toFixed(1)}%</div></div>
+          <div class="modal-kpi"><div class="modal-kpi-label">Calls / Visits</div><div class="modal-kpi-val">${fmtN(p.calls)} / ${fmtN(p.visits)}</div></div>
+        </div>
+      </div>
+    `;
+    $('modal').style.display = 'flex';
+  }
+  $('modalClose').addEventListener('click', () => $('modal').style.display = 'none');
+  $('modal').addEventListener('click', e => { if (e.target === $('modal')) $('modal').style.display = 'none'; });
+
+  // ── Start ────────────────────────────────────────────────────────
+  load();
+
+})();
