@@ -11,12 +11,12 @@
 <!-- Loader -->
 <div class="loader-overlay" id="loader">
   <div class="spinner"></div>
-  <div class="loader-text">Loading your dashboard…</div>
+  <div class="loader-text">Loading dashboard…</div>
 </div>
 
 <!-- Header -->
 <header class="dash-header">
-  <div>
+  <div style="display:flex;align-items:center;gap:10px;">
     <span class="logo-text">Partner Engage</span>
     <span class="header-sub">InsuranceDekho</span>
   </div>
@@ -27,88 +27,94 @@
   </div>
 </header>
 
+<!-- Tabs -->
+<div class="tabs-bar">
+  <button class="tab-btn active" data-tab="all">All Partners</button>
+  <button class="tab-btn" data-tab="mine">My Partners</button>
+  <button class="tab-btn" data-tab="am">AM Performance</button>
+  <button class="tab-btn" data-tab="team">Team Breakdown</button>
+</div>
+
 <!-- Status bar -->
 <div class="status-bar hidden" id="statusBar"></div>
 
-<!-- Tabs -->
-<div class="tabs-bar">
-  <button class="tab-btn active" data-tab="partners">All Partners</button>
-  <button class="tab-btn" data-tab="mypartners">My Partners</button>
-  <button class="tab-btn" data-tab="team">Team Breakdown</button>
-  <button class="tab-btn" data-tab="am">AM Performance</button>
-</div>
+<!-- ===== ALL PARTNERS ===== -->
+<div class="tab-pane active" id="tab-all">
+  <!-- KPI strip -->
+  <div style="padding:16px 20px 0;">
+    <div class="kpi-grid" id="kpiGrid"></div>
+  </div>
 
-<!-- All Partners Tab -->
-<div class="tab-pane active" id="tab-partners">
   <!-- Filters -->
   <div class="filters-bar">
     <div class="search-wrap">
       <span class="search-icon">🔍</span>
-      <input type="text" id="searchInput" placeholder="Search partner name / GCD…"/>
+      <input type="text" id="searchInput" placeholder="Search partner name / ID…"/>
     </div>
     <select class="filter-select" id="filterZone"><option value="">All Zones</option></select>
     <select class="filter-select" id="filterState"><option value="">All States</option></select>
     <select class="filter-select" id="filterOwner"><option value="">All Owners</option></select>
-    <button class="btn-clear" id="btnClear">Clear Filters</button>
+    <button class="btn-clear" id="btnClear">Clear</button>
   </div>
 
-  <!-- KPI Summary -->
-  <div style="padding:16px 20px 0">
-    <div class="kpi-grid" id="kpiGrid"></div>
-  </div>
+  <div style="padding:8px 20px 4px;font-size:12px;color:#94a3b8;" id="tableCount"></div>
 
-  <!-- Table -->
-  <div style="padding:0 20px 20px">
+  <div style="padding:0 20px 20px;">
     <div class="table-wrap">
       <table class="data-table" id="partnerTable">
         <thead>
           <tr>
             <th>#</th>
             <th>Partner Name</th>
-            <th>Zone</th>
-            <th>State</th>
-            <th>City</th>
-            <th>Owner Role</th>
-            <th>Owner Name</th>
-            <th>Status</th>
-            <th>Unique Status</th>
+            <th>Zone</th><th>State</th><th>City</th>
+            <th>Owner Role</th><th>Owner Name</th>
+            <th>Status</th><th>Unique</th>
             <th class="num-col">FTD</th>
             <th class="num-col">MTD</th>
             <th class="num-col">LMTD</th>
             <th class="num-col">MoM%</th>
             <th class="num-col">Net Combined</th>
-            <th class="num-col">Target (May)</th>
+            <th class="num-col">Target</th>
             <th class="num-col">Ach%</th>
-            <th class="num-col">Active Months</th>
+            <th class="num-col">Active Mo.</th>
             <th class="num-col">Active Biz</th>
             <th class="num-col">Calls</th>
             <th class="num-col">Visits</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody id="partnerBody"></tbody>
       </table>
+      <div class="empty-state" id="tableEmpty" style="display:none;">
+        <div class="empty-state-icon">🔍</div>
+        <div class="empty-state-msg">No partners match your filters</div>
+        <div class="empty-state-sub">Try clearing filters or changing your search</div>
+      </div>
     </div>
-    <div id="tableEmpty" class="empty-state" style="display:none">
-      <div class="empty-state-icon">📋</div>
-      <div class="empty-state-msg">No partners found</div>
-      <div class="empty-state-sub">Try adjusting your filters</div>
-    </div>
-    <div style="padding:10px 0;font-size:12px;color:#94a3b8" id="tableCount"></div>
   </div>
 </div>
 
-<!-- My Partners Tab -->
-<div class="tab-pane" id="tab-mypartners">
-  <div style="padding:20px">
+<!-- ===== MY PARTNERS ===== -->
+<div class="tab-pane" id="tab-mine">
+  <div style="padding:16px 20px 0;">
     <div class="kpi-grid" id="myKpiGrid"></div>
+  </div>
+  <div style="padding:12px 20px 20px;">
     <div class="table-wrap">
-      <table class="data-table" id="myTable">
+      <table class="data-table">
         <thead>
           <tr>
-            <th>#</th><th>Partner Name</th><th>Zone</th><th>State</th><th>City</th>
-            <th class="num-col">FTD</th><th class="num-col">MTD</th><th class="num-col">LMTD</th>
-            <th class="num-col">MoM%</th><th class="num-col">Target</th><th class="num-col">Ach%</th>
-            <th class="num-col">Calls</th><th class="num-col">Visits</th>
+            <th>#</th><th>Partner Name</th>
+            <th>Zone</th><th>State</th><th>City</th>
+            <th class="num-col">FTD</th>
+            <th class="num-col">MTD</th>
+            <th class="num-col">LMTD</th>
+            <th class="num-col">MoM%</th>
+            <th class="num-col">Target</th>
+            <th class="num-col">Ach%</th>
+            <th class="num-col">Calls</th>
+            <th class="num-col">Visits</th>
+            <th>Action</th>
           </tr>
         </thead>
         <tbody id="myBody"></tbody>
@@ -117,23 +123,29 @@
   </div>
 </div>
 
-<!-- Team Breakdown Tab -->
-<div class="tab-pane" id="tab-team">
-  <div style="padding:20px" id="teamContent">
-    <div class="empty-state"><div class="empty-state-icon">👥</div><div class="empty-state-msg">Loading team data…</div></div>
-  </div>
-</div>
-
-<!-- AM Performance Tab -->
+<!-- ===== AM PERFORMANCE ===== -->
 <div class="tab-pane" id="tab-am">
-  <div style="padding:20px" id="amContent">
-    <div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-msg">Loading AM data…</div></div>
+  <div style="padding:20px;" id="amContent">
+    <div class="empty-state">
+      <div class="empty-state-icon">📊</div>
+      <div class="empty-state-msg">Loading AM performance…</div>
+    </div>
   </div>
 </div>
 
-<!-- Partner Detail Modal -->
-<div class="modal-overlay" id="modal" style="display:none">
-  <div class="modal-box">
+<!-- ===== TEAM BREAKDOWN ===== -->
+<div class="tab-pane" id="tab-team">
+  <div style="padding:20px;" id="teamContent">
+    <div class="empty-state">
+      <div class="empty-state-icon">🏢</div>
+      <div class="empty-state-msg">Loading team data…</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== PARTNER MODAL ===== -->
+<div class="modal-overlay" id="modal" style="display:none;">
+  <div class="modal-box" style="max-width:780px;">
     <div class="modal-header">
       <h2 id="modalTitle">Partner Details</h2>
       <button class="modal-close" id="modalClose">✕</button>
@@ -142,7 +154,7 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="config.js"></script>
 <script src="app.js"></script>
 </body>
