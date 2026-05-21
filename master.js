@@ -1,412 +1,414 @@
 // ====================================================================
-// master.js — v9   (National Head Dashboard)
-// NEW IN v9: Call & Visit Tracker tab (renderCallVisitTab)
+// AM and Above Focused Partners — master.js v8
+// Zone comparison, rankings, daily run rate, 2700+ data
+// UPDATED: East & Central zone, Tele-RM, eastCentralMTD, teleRMMTD
 // ====================================================================
+(function(){
+'use strict';
+const userJson=sessionStorage.getItem('peUser');
+if(!userJson){location.href='index.html';return;}
+const user=JSON.parse(userJson);
 
-// ── Auth guard ──────────────────────────────────────────────────────
-const masterToken = localStorage.getItem('partnerToken');
-const masterUser  = JSON.parse(localStorage.getItem('partnerUser') || '{}');
-if (!masterToken) { window.location.href = 'index.html'; }
+let state={master:null,charts:{},logins:null,dailyHistory:[],runRate:0};
 
-// ── Tab routing ─────────────────────────────────────────────────────
-let cvData       = null;   // cached call/visit payload
-let cvChartCalled  = null;
-let cvChartVisited = null;
-let activeOwnerRole = 'AM';
+const $=id=>document.getElementById(id);
+const fmtINR=n=>{if(!isFinite(n)||n===0)return '₹0';if(n>=1e7)return '₹'+(n/1e7).toFixed(2)+' Cr';if(n>=1e5)return '₹'+(n/1e5).toFixed(2)+' L';if(n>=1e3)return '₹'+(n/1e3).toFixed(1)+'K';return '₹'+Math.round(n).toLocaleString('en-IN');};
+const fmtInt=n=>Number(n||0).toLocaleString('en-IN');
+const safe=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 
-document.querySelectorAll('.tab-btn').forEach(function(btn) {
-  btn.addEventListener('click', function() {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    var tab = btn.dataset.tab;
-    document.getElementById('tab-' + tab).classList.add('active');
+$('userName').textContent=user.name||user.gid;
+$('btnLogout').addEventListener('click',()=>{sessionStorage.removeItem('peUser');location.href='index.html';});
 
-    if (tab === 'pan-india')   loadPanIndia();
-    if (tab === 'zone-perf')   loadZonePerf();
-    if (tab === 'callvisit')   loadCallVisit();
-    if (tab === 'role-perf')   loadRolePerf();
-    if (tab === 'state-perf')  loadStatePerf();
-    if (tab === 'login-log')   loadLoginLog();
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    const id=tab.dataset.tab;
+    document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+    $('pane-'+id).classList.add('active');
+    if(id==='india')   renderIndia();
+    if(id==='zones')   renderZoneComparison();
+    if(id==='roles')   renderRoles();
+    if(id==='states')  renderStates();
+    if(id==='runrate') renderMasterRunRate();
+    if(id==='logins')  loadLogins();
   });
 });
 
-// ── Helpers ─────────────────────────────────────────────────────────
-function fmt(n)    { return (n || 0).toLocaleString('en-IN'); }
-function fmtCr(n)  { return '₹' + ((n||0)/1e7).toFixed(2) + ' Cr'; }
-function pct(a, b) { return b ? Math.round((a/b)*100) : 0; }
-function pctBadge(p) {
-  var cls = p >= 70 ? 'high' : p >= 40 ? 'medium' : 'low';
-  return `<span class="pct-badge ${cls}">${p}%</span>`;
+function setStatus(msg,kind){const bar=$('statusBar');bar.className='status-bar '+(kind||'');bar.textContent=msg;bar.classList.toggle('hidden',!msg);}
+
+const CHART_C={
+  green:'rgba(22,163,74,1)',greenL:'rgba(22,163,74,0.2)',
+  red:'rgba(220,38,38,1)',redL:'rgba(220,38,38,0.2)',
+  blue:'rgba(37,99,235,1)',blueL:'rgba(37,99,235,0.2)',
+  amber:'rgba(245,158,11,1)',
+  purple:'rgba(147,51,234,1)',
+  teal:'rgba(20,184,166,1)',
+  pink:'rgba(236,72,153,1)'
+};
+// v8: East & Central replaces East; Tele-RM added
+const ZONE_COLORS={
+  'North':CHART_C.blue,
+  'South':CHART_C.green,
+  'East & Central':CHART_C.amber,
+  'East':CHART_C.amber,       // fallback for any old reference
+  'West':CHART_C.purple,
+  'RON':CHART_C.teal,
+  'Tele-RM':CHART_C.pink
+};
+
+function destroyChart(name){if(state.charts[name]){state.charts[name].destroy();state.charts[name]=null;}}
+
+// ── Load master data ──
+function loadMaster(){
+  setStatus('Loading all zones… (2700+ partners)','loading');
+  fetch(API_URL+'?action=getMaster&gid='+encodeURIComponent(user.gid))
+    .then(r=>r.json()).then(res=>{
+      if(!res.success){setStatus(res.message||'Failed.','error');return;}
+      state.master=res;
+      state.runRate=res.dailyRunRate||0;
+      renderIndia();
+      renderZoneComparison();
+      renderRoles();
+      renderStates();
+      setStatus('','');
+    }).catch(err=>setStatus('Connection error: '+err.message,'error'));
+
+  // Load daily tracking
+  fetch(API_URL+'?action=getDailyTracking&gid='+encodeURIComponent(user.gid))
+    .then(r=>r.json()).then(res=>{
+      if(!res.success)return;
+      state.dailyHistory=res.history||[];
+      state.runRate=res.runRate||0;
+      renderMasterRunRateStrip(res);
+    }).catch(()=>{});
 }
-function rankBadge(i) {
-  if (i === 0) return '<span class="rank r1">1</span>';
-  if (i === 1) return '<span class="rank r2">2</span>';
-  if (i === 2) return '<span class="rank r3">3</span>';
-  return `<span class="rank rn">${i+1}</span>`;
-}
 
-async function apiFetch(action, extra) {
-  var params = Object.assign({ action, token: masterToken }, extra || {});
-  var qs = Object.keys(params).map(k => k + '=' + encodeURIComponent(params[k])).join('&');
-  var res = await fetch(API_URL + '?' + qs);
-  return res.json();
-}
+// ── Pan-India ──
+function renderIndia(){
+  const m=state.master;if(!m)return;
+  const op=m.overallProject,s=m.overallSummary;
+  if(!op)return;
+  $('m-totalPartners').textContent=fmtInt(m.totalPartners);
+  $('m-active').textContent=fmtInt(op.activePartners);
+  $('m-inactive').textContent=fmtInt(op.inactivePartners);
+  $('m-business').textContent=fmtINR(op.businessGenerated);
+  const mom=op.momPct;
+  $('m-mom').textContent=(mom>=0?'+':'')+mom+'%';
+  const pill=$('m-momPill');pill.classList.remove('pill-green','pill-red');pill.classList.add(mom>=0?'pill-green':'pill-red');
+  $('m-ach').textContent=op.achievementPct+'%';
+  $('m-connected').textContent=fmtInt(op.connectedPartners)+' / '+fmtInt(m.totalPartners);
+  $('m-conn').textContent=fmtInt(op.connectedPartners);
+  $('m-notconn').textContent=fmtInt(op.nonConnectedPartners);
+  $('m-mtd').textContent=fmtINR(op.businessGenerated);
+  $('m-lmtd').textContent=fmtINR(op.lmtd||s.prevMonthPremium);
+  $('m-mtdSub').textContent=(mom>=0?'▲ +':'▼ ')+Math.abs(mom)+'% vs last month';
+  $('m-mtdSub').className='kpi-sub '+(mom>=0?'pos':'neg');
+  $('m-maxpot').textContent=fmtINR(op.maxPotential);
+  $('m-overallpot').textContent=fmtINR(op.overallPotential);
+  $('m-target').textContent=fmtINR(op.target);
+  $('m-runrate').textContent=fmtINR(state.runRate);
+  $('m-calls').textContent=fmtInt(op.calls);
+  $('m-visits').textContent=fmtInt(op.visits);
+  $('m-growth').textContent=fmtInt(op.growthCount);
+  $('m-degrowth').textContent=fmtInt(op.degrowthCount);
 
-function logout() {
-  localStorage.clear();
-  window.location.href = 'index.html';
-}
-
-// ════════════════════════════════════════════════════════════════════
-// PAN-INDIA OVERVIEW
-// ════════════════════════════════════════════════════════════════════
-let panLoaded = false;
-async function loadPanIndia() {
-  if (panLoaded) return;
-  panLoaded = true;
-  try {
-    var d = await apiFetch('getMasterDashboard');
-    if (!d.success) { document.getElementById('pan-kpis').innerHTML = `<p style="color:red">Error: ${d.error}</p>`; return; }
-    var p = d.data || d;
-
-    document.getElementById('pan-kpis').innerHTML = `
-      <div class="kpi-card"><div class="kpi-label">Total Partners</div><div class="kpi-value">${fmt(p.totalPartners)}</div></div>
-      <div class="kpi-card blue"><div class="kpi-label">MTD Business</div><div class="kpi-value">${fmtCr(p.mtd)}</div></div>
-      <div class="kpi-card"><div class="kpi-label">LMTD</div><div class="kpi-value">${fmtCr(p.lmtd)}</div></div>
-      <div class="kpi-card"><div class="kpi-label">Max Potential</div><div class="kpi-value">${fmtCr(p.maxPotential)}</div></div>
-      <div class="kpi-card"><div class="kpi-label">Overall Potential</div><div class="kpi-value">${fmtCr(p.overallPotential)}</div></div>
-      <div class="kpi-card green"><div class="kpi-label">Active Partners</div><div class="kpi-value">${fmt(p.active)}</div></div>
-      <div class="kpi-card red"><div class="kpi-label">Inactive Partners</div><div class="kpi-value">${fmt(p.inactive)}</div></div>
-      <div class="kpi-card blue"><div class="kpi-label">Total Calls</div><div class="kpi-value">${fmt(p.totalCalls)}</div></div>
-      <div class="kpi-card green"><div class="kpi-label">Total Visits</div><div class="kpi-value">${fmt(p.totalVisits)}</div></div>
-    `;
-
-    // Charts
-    var zones = p.zones || [];
-    var labels = zones.map(z => z.zone);
-    drawBar('chartZoneMtd',    labels, zones.map(z=>z.mtd),        'MTD (₹)',        '#2563eb');
-    drawBar('chartZoneActive', labels, zones.map(z=>z.active),     'Active Partners','#16a34a');
-    drawBar('chartZonePot',    labels, zones.map(z=>z.maxPotential),'Max Potential', '#9333ea');
-    drawGroupedBar('chartMtdLmtd', labels, zones.map(z=>z.mtd), zones.map(z=>z.lmtd));
-  } catch(e) {
-    document.getElementById('pan-kpis').innerHTML = `<p style="color:red">Failed to load: ${e.message}</p>`;
+  // Tele-RM summary strip
+  const tele=m.teleRMSummary;
+  if(tele && $('m-tele-strip')){
+    const ts=tele.summary||tele;
+    $('m-tele-count').textContent=fmtInt(tele.partnerCount||0);
+    $('m-tele-mtd').textContent=fmtINR(ts.currentMonthPremium||0);
+    $('m-tele-ftd').textContent=fmtINR(ts.totalFTD||0);
+    $('m-tele-active').textContent=fmtInt(ts.activeCount||0);
+    const tmom=ts.momPct||0;
+    const tmomEl=$('m-tele-mom');
+    if(tmomEl){tmomEl.textContent=(tmom>=0?'+':'')+tmom+'%';tmomEl.className='kpi-mini-val '+(tmom>=0?'pos':'neg');}
   }
-}
 
-function drawBar(id, labels, data, label, color) {
-  var ctx = document.getElementById(id);
-  if (!ctx) return;
-  if (ctx._chart) ctx._chart.destroy();
-  ctx._chart = new Chart(ctx, {
-    type: 'bar',
-    data: { labels, datasets: [{ label, data, backgroundColor: color+'99', borderColor: color, borderWidth:1 }] },
-    options: { responsive:true, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
-  });
-}
-function drawGroupedBar(id, labels, mtd, lmtd) {
-  var ctx = document.getElementById(id);
-  if (!ctx) return;
-  if (ctx._chart) ctx._chart.destroy();
-  ctx._chart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        { label:'MTD',  data:mtd,  backgroundColor:'#2563eb99', borderColor:'#2563eb', borderWidth:1 },
-        { label:'LMTD', data:lmtd, backgroundColor:'#94a3b899', borderColor:'#94a3b8', borderWidth:1 }
-      ]
-    },
-    options: { responsive:true, scales:{y:{beginAtZero:true}} }
-  });
-}
+  // Zone chart (exclude Tele-RM from main zone bars for clarity)
+  const mainZones=(m.zoneSummaries||[]).filter(z=>z.partnerCount>0&&z.zone!=='Tele-RM').sort((a,b)=>b.summary.currentMonthPremium-a.summary.currentMonthPremium);
+  const allZones=(m.zoneSummaries||[]).filter(z=>z.partnerCount>0).sort((a,b)=>b.summary.currentMonthPremium-a.summary.currentMonthPremium);
+  const zLabels=allZones.map(z=>z.zone);
+  const zColors=zLabels.map(z=>ZONE_COLORS[z]||CHART_C.blue);
 
-// ════════════════════════════════════════════════════════════════════
-// ZONE PERFORMANCE
-// ════════════════════════════════════════════════════════════════════
-let zoneLoaded = false;
-async function loadZonePerf() {
-  if (zoneLoaded) return; zoneLoaded = true;
-  try {
-    var d = await apiFetch('getMasterDashboard');
-    var zones = (d.data || d).zones || [];
-    var colors = { North:'north', South:'south', 'East & Central':'east', West:'west', RON:'ron', TELE_RM:'tele' };
-    var html = '<div class="zone-cards">';
-    zones.forEach(function(z) {
-      var cls = colors[z.zone] || '';
-      html += `
-        <div class="zone-card ${cls}">
-          <h3>📍 ${z.zone} Zone</h3>
-          <div class="zh-tag">ZH: ${z.zhName || '—'}</div>
-          <div class="zone-stat-row"><span class="zsr-label">Total Partners</span><span class="zsr-val">${fmt(z.totalPartners)}</span></div>
-          <div class="zone-stat-row"><span class="zsr-label">MTD</span><span class="zsr-val">${fmtCr(z.mtd)}</span></div>
-          <div class="zone-stat-row"><span class="zsr-label">Max Potential</span><span class="zsr-val">${fmtCr(z.maxPotential)}</span></div>
-          <div class="zone-stat-row"><span class="zsr-label">Active / Inactive</span><span class="zsr-val">${fmt(z.active)} / ${fmt(z.inactive)}</span></div>
-          <div class="zone-stat-row"><span class="zsr-label">Calls / Visits</span><span class="zsr-val">${fmt(z.totalCalls)} / ${fmt(z.totalVisits)}</span></div>
-          <div class="zone-stat-row"><span class="zsr-label">Achievement</span><span class="zsr-val">${pct(z.mtd,z.target)}%</span></div>
-        </div>`;
-    });
-    html += '</div>';
-    document.getElementById('zone-perf-content').innerHTML = html;
-  } catch(e) { document.getElementById('zone-perf-content').innerHTML = `<p style="color:red">${e.message}</p>`; }
-}
+  destroyChart('zoneMtd');
+  state.charts.zoneMtd=new Chart($('chartZoneMtd'),{type:'bar',data:{labels:zLabels,datasets:[{label:'MTD',data:allZones.map(z=>z.summary.currentMonthPremium),backgroundColor:zColors,borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{ticks:{callback:v=>fmtINR(v)}}},plugins:{legend:{display:false}}}});
 
-// ════════════════════════════════════════════════════════════════════
-// CALL & VISIT TRACKER  ★ NEW IN v9 ★
-// ════════════════════════════════════════════════════════════════════
-let cvLoaded = false;
-async function loadCallVisit() {
-  if (cvLoaded && cvData) { renderCallVisitFull(cvData); return; }
-  document.getElementById('cv-kpi-row').innerHTML = '<div class="tab-loader"><div class="spinner"></div> Loading call & visit data…</div>';
+  destroyChart('zoneMtdLmtd');
+  state.charts.zoneMtdLmtd=new Chart($('chartZoneMtdLmtd'),{type:'bar',data:{labels:zLabels,datasets:[{label:"MTD (May'26)",data:allZones.map(z=>z.summary.currentMonthPremium),backgroundColor:zColors},{label:"LMTD (Apr'26)",data:allZones.map(z=>z.summary.prevMonthPremium),backgroundColor:'rgba(148,163,184,0.5)'}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{ticks:{callback:v=>fmtINR(v)}}},plugins:{legend:{position:'bottom'}}}});
 
-  try {
-    var d = await apiFetch('getCallVisitStats');
-    if (!d.success) throw new Error(d.error || 'API error');
-    cvData   = d;
-    cvLoaded = true;
-    renderCallVisitFull(d);
-  } catch(e) {
-    document.getElementById('cv-kpi-row').innerHTML = `<p style="color:red;padding:20px">Failed to load: ${e.message}</p>`;
+  function makeDoughnut2(cid,labels,data,colors,name){
+    destroyChart(name);
+    const total=data.reduce((a,b)=>a+b,0);
+    state.charts[name]=new Chart($(cid),{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0,hoverOffset:6}]},options:{cutout:'70%',responsive:true,maintainAspectRatio:false,animation:{duration:600},plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:11},padding:10}},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw} (${total?Math.round(ctx.raw/total*100):0}%)`}}}}});
   }
+  makeDoughnut2('chartMActivity',['Active','Inactive'],[op.activePartners,op.inactivePartners],[CHART_C.green,CHART_C.red],'mActivity');
+  makeDoughnut2('chartMConnect',['Connected','Not Connected'],[op.connectedPartners,op.nonConnectedPartners],[CHART_C.blue,CHART_C.amber],'mConnect');
+  makeDoughnut2('chartMGrowth',['Growth','Degrowth'],[op.growthCount,op.degrowthCount],[CHART_C.green,CHART_C.red],'mGrowth');
 }
 
-function renderCallVisitFull(d) {
-  var ov = d.overall || {};
-  var calledPct  = pct(ov.called,  ov.total);
-  var visitedPct = pct(ov.visited, ov.total);
+// ── Zone Comparison with Rankings ──
+const RANK_EMOJIS=['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣'];
+const RANK_LABELS=['Champion','Runner-Up','3rd Place','','',''];
+const RANK_CLASSES=['rank-1','rank-2','rank-3','','',''];
 
-  // ── KPI Cards ───────────────────────────────────────────────────
-  document.getElementById('cv-kpi-row').innerHTML = `
-    <div class="kpi-card"><div class="kpi-label">Total Partners</div><div class="kpi-value">${fmt(ov.total)}</div><div class="kpi-sub">Across all zones</div></div>
-    <div class="kpi-card blue"><div class="kpi-label">Partners Called</div><div class="kpi-value">${fmt(ov.called)}</div><div class="kpi-sub">${calledPct}% coverage</div></div>
-    <div class="kpi-card red"><div class="kpi-label">Not Called</div><div class="kpi-value">${fmt(ov.notCalled)}</div><div class="kpi-sub">${100-calledPct}% pending</div></div>
-    <div class="kpi-card green"><div class="kpi-label">Partners Visited</div><div class="kpi-value">${fmt(ov.visited)}</div><div class="kpi-sub">${visitedPct}% coverage</div></div>
-    <div class="kpi-card amber"><div class="kpi-label">Not Visited</div><div class="kpi-value">${fmt(ov.notVisited)}</div><div class="kpi-sub">${100-visitedPct}% pending</div></div>
-    <div class="kpi-card blue"><div class="kpi-label">Total Calls Made</div><div class="kpi-value">${fmt(ov.callsSum)}</div><div class="kpi-sub">Sum of all call counts</div></div>
-    <div class="kpi-card green"><div class="kpi-label">Total Visits Made</div><div class="kpi-value">${fmt(ov.visitsSum)}</div><div class="kpi-sub">Sum of all visit counts</div></div>
-  `;
+function renderZoneComparison(){
+  const m=state.master;if(!m)return;
+  // Separate Tele-RM for its own section; rank only regular zones
+  const zones=(m.zoneSummaries||[]).filter(z=>z.partnerCount>0&&z.zone!=='Tele-RM')
+    .sort((a,b)=>b.summary.currentMonthPremium-a.summary.currentMonthPremium);
+  const teleZone=(m.zoneSummaries||[]).find(z=>z.zone==='Tele-RM');
 
-  // ── Charts ───────────────────────────────────────────────────────
-  document.getElementById('cv-chart-row').style.display = '';
-  var zones = d.byZone || [];
-  var zLabels = zones.map(z => z.zone);
-  drawCvStackedBar('chartCvCalled',  zLabels, zones.map(z=>z.called),  zones.map(z=>z.notCalled),  'Called','Not Called','#2563eb','#fca5a5');
-  drawCvStackedBar('chartCvVisited', zLabels, zones.map(z=>z.visited), zones.map(z=>z.notVisited), 'Visited','Not Visited','#16a34a','#fcd34d');
+  if(!zones.length){$('zoneCompareGrid').innerHTML='<div class="empty">No zone data.</div>';return;}
 
-  // ── Zone table ───────────────────────────────────────────────────
-  document.getElementById('cv-zone-title').style.display = '';
-  document.getElementById('cv-zone-table-wrap').style.display = '';
-  var zoneHtml = `
-    <table class="data-table">
-      <thead><tr>
-        <th>Zone</th><th>Total</th>
-        <th>Called</th><th>% Called</th><th>Not Called</th>
-        <th>Visited</th><th>% Visited</th><th>Not Visited</th>
-        <th>Total Calls</th><th>Total Visits</th>
-      </tr></thead><tbody>`;
-  zones.forEach(function(z) {
-    var cp = pct(z.called,  z.total);
-    var vp = pct(z.visited, z.total);
-    zoneHtml += `<tr>
-      <td><strong>${z.zone}</strong></td>
-      <td>${fmt(z.total)}</td>
-      <td>${fmt(z.called)}</td>
-      <td>${pctBadge(cp)}<br><div class="prog-wrap"><div class="prog-fill called" style="width:${cp}%"></div></div></td>
-      <td>${fmt(z.notCalled)}</td>
-      <td>${fmt(z.visited)}</td>
-      <td>${pctBadge(vp)}<br><div class="prog-wrap"><div class="prog-fill visited" style="width:${vp}%"></div></div></td>
-      <td>${fmt(z.notVisited)}</td>
-      <td>${fmt(z.callsSum)}</td>
-      <td>${fmt(z.visitsSum)}</td>
-    </tr>`;
-  });
-  zoneHtml += '</tbody></table>';
-  document.getElementById('cv-zone-table-wrap').innerHTML = zoneHtml;
+  const maxMTD=zones[0].summary.currentMonthPremium||1;
+  const best=zones[0];
 
-  // ── ZH table ─────────────────────────────────────────────────────
-  document.getElementById('cv-zh-title').style.display = '';
-  document.getElementById('cv-zh-table-wrap').style.display = '';
-  var zhArr = (d.byZH || []).sort(function(a,b){ return b.callsSum-a.callsSum; });
-  var zhHtml = `
-    <table class="data-table">
-      <thead><tr>
-        <th>#</th><th>Zone Head (ZH)</th><th>Zone</th>
-        <th>Total Partners</th><th>Called</th><th>% Called</th>
-        <th>Visited</th><th>% Visited</th>
-        <th>Total Calls</th><th>Total Visits</th>
-      </tr></thead><tbody>`;
-  zhArr.forEach(function(z, i) {
-    var cp = pct(z.called,  z.total);
-    var vp = pct(z.visited, z.total);
-    zhHtml += `<tr>
-      <td>${rankBadge(i)}</td>
-      <td><strong>${z.zhName}</strong></td>
-      <td>${z.zone}</td>
-      <td>${fmt(z.total)}</td>
-      <td>${fmt(z.called)}</td>
-      <td>${pctBadge(cp)}</td>
-      <td>${fmt(z.visited)}</td>
-      <td>${pctBadge(vp)}</td>
-      <td><strong>${fmt(z.callsSum)}</strong></td>
-      <td><strong>${fmt(z.visitsSum)}</strong></td>
-    </tr>`;
-  });
-  zhHtml += '</tbody></table>';
-  document.getElementById('cv-zh-table-wrap').innerHTML = zhHtml;
+  $('zoneBestBanner').innerHTML=`<div style="background:linear-gradient(135deg,#fef3c7,#fde68a);border:1px solid #f59e0b;border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:12px;">
+    <span style="font-size:28px;">🏆</span>
+    <div>
+      <div style="font-weight:800;font-size:15px;color:#92400e;">Best Performing Zone: ${safe(best.zone)}</div>
+      <div style="font-size:12px;color:#b45309;">MTD: ${fmtINR(best.summary.currentMonthPremium)} | ${fmtInt(best.partnerCount)} partners | ${best.summary.achievementPct}% achievement | ${best.summary.momPct>=0?'▲ +':'▼ '}${Math.abs(best.summary.momPct)}% MoM</div>
+    </div>
+  </div>`;
 
-  // ── Owner role tabs ───────────────────────────────────────────────
-  document.getElementById('cv-owner-title').style.display = '';
-  document.getElementById('cv-role-tabs').style.display   = '';
-  document.getElementById('cv-owner-table-wrap').style.display = '';
-  renderOwnerTable(activeOwnerRole, d.byOwnerRole || {});
+  $('zoneCompareGrid').innerHTML=zones.map((z,i)=>{
+    const s=z.summary;
+    const fillPct=Math.round(s.currentMonthPremium/maxMTD*100);
+    const badgeClass=i<3?['badge-gold','badge-silver','badge-bronze'][i]:'badge-normal';
+    return `<div class="zone-comp-card ${RANK_CLASSES[i]||''}">
+      <div class="zone-comp-head">
+        <div>
+          <div class="zone-comp-name">${RANK_EMOJIS[i]||''} ${safe(z.zone)}</div>
+          <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${fmtInt(z.partnerCount)} partners</div>
+        </div>
+        ${RANK_LABELS[i]?`<span class="zone-comp-badge ${badgeClass}">${RANK_LABELS[i]}</span>`:''}
+      </div>
+      <div class="zone-bar-wrap">
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;margin-bottom:4px;"><span>MTD vs Best</span><span>${fillPct}%</span></div>
+        <div class="zone-bar"><div class="zone-bar-fill" style="width:${fillPct}%;"></div></div>
+      </div>
+      <div class="zone-kpis">
+        <div class="zk" style="background:#0f172a;"><div class="zk-l" style="color:rgba(255,255,255,.5);">FTD</div><div class="zk-v" style="color:#fbbf24;">${fmtINR(s.totalFTD||0)}</div></div>
+        <div class="zk"><div class="zk-l">MTD</div><div class="zk-v pos"><b>${fmtINR(s.currentMonthPremium)}</b></div></div>
+        <div class="zk"><div class="zk-l">LMTD</div><div class="zk-v">${fmtINR(s.prevMonthPremium)}</div></div>
+        <div class="zk"><div class="zk-l">MoM</div><div class="zk-v ${s.momPct>=0?'pos':'neg'}">${s.momPct>=0?'+':''}${s.momPct}%</div></div>
+        <div class="zk"><div class="zk-l">Target Ach.</div><div class="zk-v ${s.achievementPct>=80?'pos':s.achievementPct>=40?'':'neg'}">${s.achievementPct}%</div></div>
+        <div class="zk"><div class="zk-l">Max Pot.</div><div class="zk-v">${fmtINR(s.totalMaxPotential)}</div></div>
+        <div class="zk"><div class="zk-l">Overall Pot.</div><div class="zk-v">${fmtINR(s.totalOverallPotential)}</div></div>
+        <div class="zk"><div class="zk-l">Active</div><div class="zk-v pos">${fmtInt(s.activeCount)}</div></div>
+        <div class="zk"><div class="zk-l">Inactive</div><div class="zk-v neg">${fmtInt(s.inactiveCount)}</div></div>
+        <div class="zk"><div class="zk-l">Connected</div><div class="zk-v pos">${fmtInt(s.connectedCount)}</div></div>
+        <div class="zk"><div class="zk-l">Engagement</div><div class="zk-v">${s.engagementPct||Math.round(s.connectedCount/z.partnerCount*100)}%</div></div>
+        <div class="zk"><div class="zk-l">Growth%</div><div class="zk-v">${s.growthPct||Math.round(s.growthCount/z.partnerCount*100)}%</div></div>
+        <div class="zk"><div class="zk-l">Calls / Visits</div><div class="zk-v pos">${fmtInt(s.totalCalls)}/${fmtInt(s.totalVisits)}</div></div>
+      </div>
+      <button class="btn-primary" style="width:100%;margin-top:10px;font-size:12px;padding:7px;" onclick="openZoneDrill('${safe(z.zone)}')">View Team Breakdown</button>
+      <div class="zone-comp-rank">${i+1}</div>
+    </div>`;
+  }).join('');
 
-  // Role tab click
-  document.querySelectorAll('#cv-role-tabs .role-tab-btn').forEach(function(btn) {
-    btn.onclick = function() {
-      document.querySelectorAll('#cv-role-tabs .role-tab-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      activeOwnerRole = btn.dataset.role;
-      renderOwnerTable(activeOwnerRole, d.byOwnerRole || {});
-    };
-  });
-}
-
-function renderOwnerTable(role, byOwnerRole) {
-  var arr = byOwnerRole[role] || [];
-  if (!arr.length) {
-    document.getElementById('cv-owner-table-wrap').innerHTML =
-      `<p style="padding:20px;color:#64748b">No data found for role: ${role}</p>`;
-    return;
+  // Tele-RM summary card below the ranked grid
+  if(teleZone){
+    const ts=teleZone.summary;
+    const teleHtml=`<div style="margin-top:16px;padding:14px 16px;background:linear-gradient(135deg,#0f172a,#1e1b4b);border:1px solid rgba(236,72,153,0.4);border-radius:12px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <span style="font-size:22px;">📞</span>
+        <div>
+          <div style="font-weight:700;font-size:14px;color:#f9a8d4;">Tele-RM Zone</div>
+          <div style="font-size:11px;color:#94a3b8;">${fmtInt(teleZone.partnerCount)} partners • Tele channel</div>
+        </div>
+        <button class="btn-primary" style="margin-left:auto;font-size:12px;padding:6px 14px;background:rgba(236,72,153,0.2);border-color:rgba(236,72,153,0.5);color:#f9a8d4;" onclick="openZoneDrill('Tele-RM')">View Breakdown</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px;">
+        <div class="zk" style="background:#0f172a;"><div class="zk-l" style="color:rgba(255,255,255,.5);">FTD</div><div class="zk-v" style="color:#fbbf24;">${fmtINR(ts.totalFTD||0)}</div></div>
+        <div class="zk"><div class="zk-l">MTD</div><div class="zk-v pos"><b>${fmtINR(ts.currentMonthPremium)}</b></div></div>
+        <div class="zk"><div class="zk-l">LMTD</div><div class="zk-v">${fmtINR(ts.prevMonthPremium)}</div></div>
+        <div class="zk"><div class="zk-l">MoM</div><div class="zk-v ${ts.momPct>=0?'pos':'neg'}">${ts.momPct>=0?'+':''}${ts.momPct}%</div></div>
+        <div class="zk"><div class="zk-l">Ach.</div><div class="zk-v ${ts.achievementPct>=80?'pos':ts.achievementPct>=40?'':'neg'}">${ts.achievementPct}%</div></div>
+        <div class="zk"><div class="zk-l">Active</div><div class="zk-v pos">${fmtInt(ts.activeCount)}</div></div>
+        <div class="zk"><div class="zk-l">Connected</div><div class="zk-v pos">${fmtInt(ts.connectedCount)}</div></div>
+        <div class="zk"><div class="zk-l">Calls</div><div class="zk-v pos">${fmtInt(ts.totalCalls)}</div></div>
+      </div>
+    </div>`;
+    $('zoneCompareGrid').insertAdjacentHTML('afterend',teleHtml);
   }
-  var html = `
-    <table class="data-table">
-      <thead><tr>
-        <th>#</th><th>${role} Name</th><th>Zone</th>
-        <th>Partners</th>
-        <th>Called</th><th>% Called</th>
-        <th>Visited</th><th>% Visited</th>
-        <th>Total Calls</th><th>Total Visits</th>
-        <th>Call Rate</th>
-      </tr></thead><tbody>`;
-  arr.forEach(function(o, i) {
-    var cp = pct(o.called,  o.total);
-    var vp = pct(o.visited, o.total);
-    var callRate = o.total ? (o.callsSum / o.total).toFixed(1) : '0';
-    html += `<tr>
-      <td>${rankBadge(i)}</td>
-      <td><strong>${o.name}</strong></td>
-      <td>${o.zone}</td>
-      <td>${fmt(o.total)}</td>
-      <td>${fmt(o.called)}</td>
-      <td>${pctBadge(cp)}<br><div class="prog-wrap"><div class="prog-fill called" style="width:${cp}%"></div></div></td>
-      <td>${fmt(o.visited)}</td>
-      <td>${pctBadge(vp)}<br><div class="prog-wrap"><div class="prog-fill visited" style="width:${vp}%"></div></div></td>
-      <td><strong>${fmt(o.callsSum)}</strong></td>
-      <td><strong>${fmt(o.visitsSum)}</strong></td>
-      <td>${callRate}x avg</td>
+
+  // Zone comparison charts (all zones including Tele-RM)
+  const allZ=(m.zoneSummaries||[]).filter(z=>z.partnerCount>0).sort((a,b)=>b.summary.currentMonthPremium-a.summary.currentMonthPremium);
+  const zLabels=allZ.map(z=>z.zone);
+  const zColors=zLabels.map(z=>ZONE_COLORS[z]||CHART_C.blue);
+
+  destroyChart('zoneMaxPot');
+  state.charts.zoneMaxPot=new Chart($('chartZoneMaxPot'),{type:'bar',data:{labels:zLabels,datasets:[{label:'Max Potential',data:allZ.map(z=>z.summary.totalMaxPotential),backgroundColor:zColors,borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{ticks:{callback:v=>fmtINR(v)}}},plugins:{legend:{display:false}}}});
+
+  destroyChart('zoneActive');
+  state.charts.zoneActive=new Chart($('chartZoneActive'),{type:'bar',data:{labels:zLabels,datasets:[{label:'Active',data:allZ.map(z=>z.summary.activeCount),backgroundColor:CHART_C.green},{label:'Inactive',data:allZ.map(z=>z.summary.inactiveCount),backgroundColor:CHART_C.red}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true},y:{stacked:true}},plugins:{legend:{position:'bottom'}}}});
+}
+
+window.openZoneDrill=function(zoneName){
+  const m=state.master;if(!m)return;
+  const zoneData=(m.zoneSummaries||[]).find(z=>z.zone===zoneName);
+  const s=zoneData?zoneData.summary:null;
+  const isTele=zoneName==='Tele-RM';
+  const allRoles={ZH:m.zhPerf||[],RH:m.rhPerf||[],SH:m.shPerf||[],RM:m.rmPerf||[],AM:m.amPerf||[]};
+  const byRole={};
+  Object.keys(allRoles).forEach(role=>{byRole[role]=allRoles[role].filter(p=>p.zone===zoneName||(!p.zone&&zoneName));});
+  // For Tele-RM, also check teleRMPerf
+  if(isTele&&m.teleRMPerf){byRole['Tele-RM']=m.teleRMPerf;}
+
+  $('modalBody').innerHTML=`<h2>${safe(zoneName)} ${isTele?'📞':'Zone'} <span class="role-chip">${fmtInt(zoneData?zoneData.partnerCount:0)} partners</span></h2>
+  ${s?`<div class="kpi-row">
+    <div class="kpi-mini" style="background:linear-gradient(135deg,#0f172a,#1e3a5f);"><div><div class="kpi-mini-label" style="color:rgba(255,255,255,.5);">FTD</div><div class="kpi-mini-val" style="color:#fbbf24;">${fmtINR(s.totalFTD||0)}</div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">MTD</div><div class="kpi-mini-val pos">${fmtINR(s.currentMonthPremium)}</div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">LMTD</div><div class="kpi-mini-val">${fmtINR(s.prevMonthPremium)}</div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">MoM</div><div class="kpi-mini-val ${s.momPct>=0?'pos':'neg'}">${s.momPct>=0?'+':''}${s.momPct}%</div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">Ach.</div><div class="kpi-mini-val">${s.achievementPct}%</div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">Max Pot.</div><div class="kpi-mini-val">${fmtINR(s.totalMaxPotential)}</div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">Active</div><div class="kpi-mini-val pos">${fmtInt(s.activeCount)}</div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">Connected</div><div class="kpi-mini-val pos">${fmtInt(s.connectedCount)}</div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">Calls / Visits</div><div class="kpi-mini-val pos">${fmtInt(s.totalCalls)} / ${fmtInt(s.totalVisits)}</div></div></div>
+  </div>`:''} 
+  ${(isTele?['Tele-RM','ZH','RH','SH','RM','AM']:['ZH','RH','SH','RM','AM']).map(role=>{
+    const list=byRole[role];if(!list||!list.length)return '';
+    return `<h3>${role} Performance (${list.length})</h3>
+    <div class="table-wrap"><table class="ptable"><thead><tr><th>Name</th><th>Partners</th><th>Max Pot.</th><th>Target</th><th>FTD</th><th>MTD</th><th>LMTD</th><th>MoM%</th><th>Ach%</th><th>Active</th><th>Connected</th><th>Calls</th><th>Visits</th></tr></thead>
+    <tbody>${list.map(p=>{const ps=p.summary;const mom=ps.momPct;return `<tr><td><b>${safe(p.name)}</b></td><td>${fmtInt(ps.totalPartners)}</td><td>${fmtINR(ps.totalMaxPotential)}</td><td>${fmtINR(ps.totalTarget)}</td><td style="color:#f59e0b;font-weight:700;">${fmtINR(ps.totalFTD||0)}</td><td class="pos"><b>${fmtINR(ps.currentMonthPremium)}</b></td><td>${fmtINR(ps.prevMonthPremium)}</td><td class="${mom>=0?'pos':'neg'}">${mom>=0?'+':''}${mom}%</td><td class="${ps.achievementPct>=80?'pos':ps.achievementPct>=40?'':'neg'}">${ps.achievementPct}%</td><td class="pos">${fmtInt(ps.activeCount)}</td><td class="pos">${fmtInt(ps.connectedCount)}</td><td class="pos">${fmtInt(ps.totalCalls)}</td><td class="pos">${fmtInt(ps.totalVisits)}</td></tr>`;}).join('')}</tbody>
+    </table></div>`;
+  }).join('')}`;
+  $('drillModal').classList.remove('hidden');
+};
+
+$('modalClose').addEventListener('click',()=>$('drillModal').classList.add('hidden'));
+$('modalBackdrop').addEventListener('click',()=>$('drillModal').classList.add('hidden'));
+
+// ── Role Performance ──
+function renderRoles(){
+  const m=state.master;if(!m)return;
+  const role=$('fRole').value,search=($('fRoleSearch').value||'').toLowerCase(),sort=$('fRoleSort').value||'mtd';
+  const key=role.toLowerCase()+'Perf';
+  let list=(m[key]||[]).slice();
+  if(search)list=list.filter(p=>p.name.toLowerCase().indexOf(search)!==-1);
+  list.sort((a,b)=>{
+    if(sort==='mtd')return b.summary.currentMonthPremium-a.summary.currentMonthPremium;
+    if(sort==='ach')return b.summary.achievementPct-a.summary.achievementPct;
+    if(sort==='partners')return b.summary.totalPartners-a.summary.totalPartners;
+    return a.name.localeCompare(b.name);
+  });
+  if(!list.length){$('roleGrid').innerHTML='<div class="empty">No data for '+role+'.</div>';return;}
+  $('roleGrid').innerHTML=list.map(p=>{
+    const s=p.summary,mom=s.momPct;
+    const isTele=(p.zone==='Tele-RM');
+    return `<div class="team-card">
+      <div class="team-card-head"><div><div class="team-name">${safe(p.name)}${isTele?' <span class="badge" style="background:rgba(236,72,153,0.2);color:#f9a8d4;font-size:10px;padding:2px 6px;border-radius:4px;">📞 Tele</span>':''}</div><div class="team-role">${role} • ${safe(p.zone)} • ${fmtInt(s.totalPartners)} partners</div></div></div>
+      <div class="team-stats">
+        <div class="ts" style="background:#0f172a;"><div class="ts-l" style="color:rgba(255,255,255,.5);">FTD</div><div class="ts-v" style="color:#fbbf24;">${fmtINR(s.totalFTD||0)}</div></div>
+        <div class="ts"><div class="ts-l">MTD</div><div class="ts-v pos"><b>${fmtINR(s.currentMonthPremium)}</b></div></div>
+        <div class="ts"><div class="ts-l">LMTD</div><div class="ts-v">${fmtINR(s.prevMonthPremium)}</div></div>
+        <div class="ts"><div class="ts-l">MoM</div><div class="ts-v ${mom>=0?'pos':'neg'}">${mom>=0?'+':''}${mom}%</div></div>
+        <div class="ts"><div class="ts-l">Ach.</div><div class="ts-v ${s.achievementPct>=80?'pos':s.achievementPct>=40?'':'neg'}">${s.achievementPct}%</div></div>
+        <div class="ts"><div class="ts-l">Max Pot.</div><div class="ts-v">${fmtINR(s.totalMaxPotential)}</div></div>
+        <div class="ts"><div class="ts-l">Active</div><div class="ts-v pos">${fmtInt(s.activeCount)}</div></div>
+        <div class="ts"><div class="ts-l">Inactive</div><div class="ts-v neg">${fmtInt(s.inactiveCount)}</div></div>
+        <div class="ts"><div class="ts-l">Connected</div><div class="ts-v pos">${fmtInt(s.connectedCount)}</div></div>
+        <div class="ts"><div class="ts-l">Calls</div><div class="ts-v pos">${fmtInt(s.totalCalls)}</div></div>
+        <div class="ts"><div class="ts-l">Visits</div><div class="ts-v pos">${fmtInt(s.totalVisits)}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+['fRole','fRoleSearch','fRoleSort'].forEach(id=>{const el=$(id);if(!el)return;el.addEventListener(el.tagName==='INPUT'?'input':'change',renderRoles);});
+
+// ── State Ranking ──
+function renderStates(){
+  const m=state.master;if(!m)return;
+  const states=(m.stateSummaries||[]).filter(x=>x.partnerCount>0&&x.state!=='Tele-RM');
+  $('stateTbody').innerHTML=states.map((st,i)=>{
+    const s=st.summary,mom=s.momPct;
+    const rank=i+1;
+    const rankClass=rank===1?'rank-1':rank===2?'rank-2':rank===3?'rank-3':'';
+    return `<tr>
+      <td class="rank-cell ${rankClass}">${rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':rank}</td>
+      <td><b>${safe(st.state)}</b></td>
+      <td>${safe(zoneOfState(st.state))}</td>
+      <td>${fmtInt(st.partnerCount)}</td>
+      <td>${fmtINR(s.totalMaxPotential)}</td>
+      <td>${fmtINR(s.totalOverallPotential)}</td>
+      <td>${fmtINR(s.totalTarget)}</td>
+      <td style="color:#f59e0b;font-weight:700;">${fmtINR(s.totalFTD||0)}</td>
+      <td class="pos"><b>${fmtINR(s.currentMonthPremium)}</b></td>
+      <td>${fmtINR(s.prevMonthPremium)}</td>
+      <td class="${mom>=0?'pos':'neg'}">${mom>=0?'+':''}${mom}%</td>
+      <td class="${s.achievementPct>=80?'pos':s.achievementPct>=40?'':'neg'}">${s.achievementPct}%</td>
+      <td class="pos">${fmtInt(s.activeCount)}</td>
+      <td class="pos">${fmtInt(s.connectedCount)}</td>
+      <td>${st.partnerCount>0?Math.round(s.connectedCount/st.partnerCount*100):0}%</td>
+      <td class="pos">${fmtInt(s.totalCalls)}</td>
+      <td class="pos">${fmtInt(s.totalVisits)}</td>
     </tr>`;
-  });
-  html += '</tbody></table>';
-  document.getElementById('cv-owner-table-wrap').innerHTML = html;
+  }).join('');
 }
 
-function drawCvStackedBar(id, labels, yes, no, yesLabel, noLabel, yesColor, noColor) {
-  var ctx = document.getElementById(id);
-  if (!ctx) return;
-  if (ctx._chart) ctx._chart.destroy();
-  ctx._chart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        { label: yesLabel, data: yes, backgroundColor: yesColor + 'cc' },
-        { label: noLabel,  data: no,  backgroundColor: noColor  + 'cc' }
-      ]
-    },
-    options: {
-      responsive: true,
-      scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
-      plugins: { legend: { position: 'bottom' } }
-    }
-  });
+// v8: East & Central replaces East
+function zoneOfState(stateName){
+  const s=(stateName||'').toLowerCase();
+  if(['north','ncr','up1','up2','uk','haryana','punjab','delhi','himachal','hp','chandigarh'].some(z=>s.indexOf(z)!==-1))return 'North';
+  if(['gujarat','rajasthan','mp','mumbai','pune','west','maharashtra','goa'].some(z=>s.indexOf(z)!==-1))return 'West';
+  if(['karnataka','kerala','tamil','telangana','andhra','south','ap'].some(z=>s.indexOf(z)!==-1))return 'South';
+  if(['bengal','wb','orissa','odisha','bihar','jharkhand','east','assam','northeast','ne','central','mp ','chhattisgarh','chattisgarh'].some(z=>s.indexOf(z)!==-1))return 'East & Central';
+  if(['ron','rom'].some(z=>s.indexOf(z)!==-1))return 'RON';
+  if(s==='tele-rm'||s==='telerm')return 'Tele-RM';
+  return '—';
 }
 
-// ════════════════════════════════════════════════════════════════════
-// ROLE PERFORMANCE
-// ════════════════════════════════════════════════════════════════════
-let roleLoaded = false;
-async function loadRolePerf() {
-  if (roleLoaded) return; roleLoaded = true;
-  try {
-    var d = await apiFetch('getMasterDashboard');
-    var roles = (d.data || d).rolePerf || [];
-    var html = `<div class="data-table-wrap"><table class="data-table">
-      <thead><tr>
-        <th>Name</th><th>Role</th><th>Zone</th>
-        <th>Partners</th><th>MTD</th><th>LMTD</th><th>MoM</th>
-        <th>Active</th><th>Calls</th><th>Visits</th>
-      </tr></thead><tbody>`;
-    roles.forEach(function(r) {
-      var mom = r.lmtd ? (((r.mtd-r.lmtd)/r.lmtd)*100).toFixed(1) : '—';
-      var momColor = parseFloat(mom) >= 0 ? '#16a34a' : '#dc2626';
-      html += `<tr>
-        <td><strong>${r.name}</strong></td>
-        <td>${r.role}</td><td>${r.zone||'—'}</td>
-        <td>${fmt(r.partners)}</td>
-        <td>${fmtCr(r.mtd)}</td><td>${fmtCr(r.lmtd)}</td>
-        <td style="color:${momColor};font-weight:700">${mom}%</td>
-        <td>${fmt(r.active)}</td>
-        <td>${fmt(r.calls)}</td><td>${fmt(r.visits)}</td>
-      </tr>`;
-    });
-    html += '</tbody></table></div>';
-    document.getElementById('role-perf-content').innerHTML = html;
-  } catch(e) { document.getElementById('role-perf-content').innerHTML = `<p style="color:red">${e.message}</p>`; }
+// ── Daily Run Rate ──
+function renderMasterRunRateStrip(res){
+  if($('m-rr-today'))$('m-rr-today').textContent=fmtINR(res.runRate||0);
+  if($('m-rr-mtd'))$('m-rr-mtd').textContent=fmtINR(res.todayMTD||0);
+  if($('m-rr-lmtd'))$('m-rr-lmtd').textContent=fmtINR(res.yesterdayMTD||0);
 }
 
-// ════════════════════════════════════════════════════════════════════
-// STATE PERFORMANCE
-// ════════════════════════════════════════════════════════════════════
-let stateLoaded = false;
-async function loadStatePerf() {
-  if (stateLoaded) return; stateLoaded = true;
-  try {
-    var d = await apiFetch('getMasterDashboard');
-    var states = (d.data || d).statePerf || [];
-    states.sort((a,b) => b.mtd - a.mtd);
-    var html = `<div class="data-table-wrap"><table class="data-table">
-      <thead><tr><th>#</th><th>State</th><th>Zone</th><th>Partners</th>
-      <th>MTD</th><th>LMTD</th><th>Active</th><th>Calls</th><th>Visits</th></tr></thead><tbody>`;
-    states.forEach(function(s, i) {
-      html += `<tr><td>${rankBadge(i)}</td><td><strong>${s.state}</strong></td>
-        <td>${s.zone||'—'}</td><td>${fmt(s.partners)}</td>
-        <td>${fmtCr(s.mtd)}</td><td>${fmtCr(s.lmtd)}</td>
-        <td>${fmt(s.active)}</td><td>${fmt(s.calls)}</td><td>${fmt(s.visits)}</td></tr>`;
-    });
-    html += '</tbody></table></div>';
-    document.getElementById('state-perf-content').innerHTML = html;
-  } catch(e) { document.getElementById('state-perf-content').innerHTML = `<p style="color:red">${e.message}</p>`; }
+function renderMasterRunRate(){
+  const hist=state.dailyHistory;
+  if(!hist||!hist.length){return;}
+  const labels=hist.map(h=>h.date.slice(5));
+  const mtdData=hist.map(h=>h.totalMTD);
+  const rrData=hist.map((h,i)=>i===0?0:h.totalMTD-hist[i-1].totalMTD);
+
+  destroyChart('mDailyTrend');
+  state.charts.mDailyTrend=new Chart($('mChartDailyTrend'),{type:'line',data:{labels,datasets:[{label:'Total MTD',data:mtdData,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.1)',fill:true,tension:0.4,pointRadius:4}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{ticks:{callback:v=>fmtINR(v)}}},plugins:{legend:{position:'bottom'}}}});
+
+  destroyChart('mRunRate');
+  state.charts.mRunRate=new Chart($('mChartRunRate'),{type:'bar',data:{labels:labels.slice(1),datasets:[{label:'Daily Run Rate',data:rrData.slice(1),backgroundColor:rrData.slice(1).map(v=>v>=0?'rgba(22,163,74,0.8)':'rgba(220,38,38,0.8)'),borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{ticks:{callback:v=>fmtINR(v)}}},plugins:{legend:{position:'bottom'}}}});
+
+  // v8: East & Central + Tele-RM in zone trend
+  const zones=['North','South','East & Central','West','RON','Tele-RM'];
+  const zoneKeys=['northMTD','southMTD','eastCentralMTD','westMTD','ronMTD','teleRMMTD'];
+  const zoneColorsArr=[CHART_C.blue,CHART_C.green,CHART_C.amber,CHART_C.purple,CHART_C.teal,CHART_C.pink];
+  destroyChart('mZoneTrend');
+  state.charts.mZoneTrend=new Chart($('mChartZoneTrend'),{type:'line',data:{labels,datasets:zones.map((z,i)=>({label:z,data:hist.map(h=>h[zoneKeys[i]]||0),borderColor:zoneColorsArr[i],backgroundColor:'transparent',tension:0.3,pointRadius:3}))},options:{responsive:true,maintainAspectRatio:false,scales:{y:{ticks:{callback:v=>fmtINR(v)}}},plugins:{legend:{position:'bottom'}}}});
 }
 
-// ════════════════════════════════════════════════════════════════════
-// LOGIN ACTIVITY
-// ════════════════════════════════════════════════════════════════════
-let loginLoaded = false;
-async function loadLoginLog() {
-  if (loginLoaded) return; loginLoaded = true;
-  try {
-    var d = await apiFetch('getLoginLog');
-    var logs = d.logs || [];
-    var html = `<div class="data-table-wrap"><table class="data-table">
-      <thead><tr><th>Name</th><th>Role</th><th>Zone</th><th>Last Login</th><th>Login Count</th></tr></thead><tbody>`;
-    logs.forEach(function(l) {
-      html += `<tr><td><strong>${l.name}</strong></td><td>${l.role}</td>
-        <td>${l.zone||'—'}</td><td>${l.lastLogin}</td><td>${l.count}</td></tr>`;
-    });
-    html += '</tbody></table></div>';
-    document.getElementById('login-log-content').innerHTML = html;
-  } catch(e) { document.getElementById('login-log-content').innerHTML = `<p style="color:red">${e.message}</p>`; }
+// ── Logins ──
+function loadLogins(){
+  setStatus('Loading login activity…','loading');
+  fetch(API_URL+'?action=getLoginStats&gid='+encodeURIComponent(user.gid))
+    .then(r=>r.json()).then(res=>{
+      if(!res.success){setStatus(res.message||'Failed.','error');return;}
+      state.logins=res;renderLogins();setStatus('','');
+    }).catch(err=>setStatus('Error: '+err.message,'error'));
 }
+function renderLogins(){
+  if(!state.logins)return;
+  $('loginTotal').textContent=fmtInt(state.logins.totalLogins);
+  $('loginUsers').textContent=fmtInt((state.logins.stats||[]).length);
+  const search=($('fLoginSearch').value||'').toLowerCase();
+  const list=(state.logins.stats||[]).filter(s=>!search||(s.name+' '+s.gid+' '+s.role).toLowerCase().indexOf(search)!==-1).sort((a,b)=>b.count-a.count);
+  $('loginsTbody').innerHTML=list.map(s=>`<tr><td><b>${safe(s.name)}</b></td><td>${safe(s.gid)}</td><td>${safe(s.role)}</td><td>${safe(s.zone)}</td><td>${fmtInt(s.count)}</td><td>${safe(String(s.lastLogin).slice(0,10))}</td></tr>`).join('');
+}
+$('fLoginSearch').addEventListener('input',renderLogins);
+$('btnRefreshLogins').addEventListener('click',loadLogins);
 
-// ── Boot: load pan-india on page load ────────────────────────────────
-window.addEventListener('DOMContentLoaded', loadPanIndia);
+loadMaster();
+})();

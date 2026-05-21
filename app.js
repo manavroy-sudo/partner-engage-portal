@@ -1,713 +1,526 @@
 // ====================================================================
-// app.js v9 — Partner Engage Dashboard Logic
-// V9 Changes over v10:
-//  1. openModal: 14-month trend chart using monthlyData + monthLabels
-//  2. renderTeam: individual member cards (not just a role table)
-//     — each card has "Details" button → partner drill-down modal
-//  3. renderAM: AM cards with search/zone filter
-//     — each card has "Details" button → partner list drill-down
-//  4. VIEW button added to All Partners & My Partners table rows
-//  5. window._dashData stored after load for global access
-//  6. openTeamDrill / openAMDrill: partner list modals with VIEW chain
-//  7. AM owner-mapping fix: myPartners now populated from server (v9 Code.gs)
+// AM and Above Focused Partners — app.js v7
+// UPDATED: East & Central zone (was East)
+// NEW:     Tele-RM zone support, FTD column in table header
 // ====================================================================
+(function(){
+'use strict';
+const userJson=sessionStorage.getItem('peUser');
+if(!userJson){location.href='index.html';return;}
+const user=JSON.parse(userJson);
 
-(function () {
-  'use strict';
+// 13 historical months (Apr'25–Apr'26) + current MTD = May'26
+const MONTHS=["Apr'25","May'25","Jun'25","Jul'25","Aug'25","Sep'25","Oct'25","Nov'25","Dec'25","Jan'26","Feb'26","Mar'26","Apr'26"];
 
-  // ── Session ──────────────────────────────────────────────────────
-  const peUser = JSON.parse(sessionStorage.getItem('peUser') || 'null');
-  if (!peUser) { location.href = 'index.html'; return; }
+let state={
+  partners:[],myPartners:[],team:[],amPerf:[],
+  summary:null,overallProject:null,myZones:[],
+  filterOptions:{states:[],cities:[],owners:[]},
+  charts:{},dailyHistory:[],runRate:0,todayMTD:0,yesterdayMTD:0
+};
 
-  // ── Helpers ──────────────────────────────────────────────────────
-  const $    = id => document.getElementById(id);
-  const safe = s  => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=id=>document.getElementById(id);
+const fmtINR=n=>{if(!isFinite(n)||n===0)return '₹0';if(n>=1e7)return '₹'+(n/1e7).toFixed(2)+' Cr';if(n>=1e5)return '₹'+(n/1e5).toFixed(2)+' L';if(n>=1e3)return '₹'+(n/1e3).toFixed(1)+'K';return '₹'+Math.round(n).toLocaleString('en-IN');};
+const fmtInt=n=>Number(n||0).toLocaleString('en-IN');
+const safe=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+const pct=(a,b)=>b>0?Math.round((a-b)/b*100):0;
 
-  const fmtINR = n => {
-    n = Number(n) || 0;
-    if (n >= 1e7) return '₹' + (n / 1e7).toFixed(2) + ' Cr';
-    if (n >= 1e5) return '₹' + (n / 1e5).toFixed(2) + ' L';
-    if (n >= 1e3) return '₹' + (n / 1e3).toFixed(1) + 'K';
-    return '₹' + Math.round(n).toLocaleString('en-IN');
-  };
-  const fmtN = n => Number(n || 0).toLocaleString('en-IN');
+$('userName').textContent=user.name||user.gid;
+$('userRole').textContent=user.role+(user.zone?' • '+user.zone:'');
+$('btnLogout').addEventListener('click',()=>{sessionStorage.removeItem('peUser');location.href='index.html';});
 
-  // Field accessors — handles both old and new Code.gs field names
-  const mtd  = p => Number(p.currentMonth  || p.mtd  || 0);
-  const lmtd = p => Number(p.prevMonth     || p.lmtd || 0);
-  const ftd  = p => Number(p.ftd  || 0);
-  const tgt  = p => Number(p.target || 0);
-  const net  = p => Number(p.netCombinedPremium || p.netCombined || 0);
-  const abiz = p => Number(p.activeMonthsBiz   || p.activeBiz   || 0);
-  const amon = p => Number(p.activeMonthsCount  || p.activeMonths || 0);
-  const mom  = p => lmtd(p) > 0 ? ((mtd(p) - lmtd(p)) / lmtd(p) * 100) : 0;
-  const ach  = p => tgt(p)  > 0 ? (mtd(p) / tgt(p) * 100) : 0;
-  const statusStr  = p => p.status || (p.isActive ? 'Active' : 'Inactive');
-  const statusBadge = s => {
-    const m = { Active:'green', Inactive:'red', New:'blue', Dormant:'yellow' };
-    return `<span class="badge badge-${m[s]||'gray'}">${safe(s)}</span>`;
-  };
-
-  // ── Header ───────────────────────────────────────────────────────
-  $('headerName').textContent = peUser.name || peUser.gid;
-  $('headerRole').textContent = peUser.role || '';
-  $('btnLogout').addEventListener('click', () => {
-    sessionStorage.removeItem('peUser');
-    location.href = 'index.html';
+// ── tabs ──
+document.querySelectorAll('.tab').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    const id=tab.dataset.tab;
+    document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+    $('pane-'+id).classList.add('active');
+    if(id==='team')    renderTeam();
+    if(id==='mine')    renderMine();
+    if(id==='am')      renderAm();
+    if(id==='overall') renderCharts();
+    if(id==='runrate') renderRunRate();
   });
+});
 
-  // ── Status ───────────────────────────────────────────────────────
-  function setStatus(msg, kind) {
-    const bar = $('statusBar');
-    bar.textContent = msg || '';
-    bar.className = 'status-bar' + (kind ? ' ' + kind : '') + (!msg ? ' hidden' : '');
-  }
+// Tele-RM and AM users get simplified view
+const isTeleRole = ()=>['TELE-RM','TELERM','TELE'].some(k=>user.role.toUpperCase().replace(/[\s\-]/g,'').indexOf(k.replace(/[\s\-]/g,''))===0);
+if(user.role==='AM'||isTeleRole()){
+  $('tabMine').style.display='none';
+  $('tabAm').style.display='none';
+  $('tabTeam').style.display='none';
+}
 
-  // ── Tabs ─────────────────────────────────────────────────────────
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-      btn.classList.add('active');
-      const pane = $('tab-' + btn.dataset.tab);
-      if (pane) pane.classList.add('active');
-    });
-  });
+function setStatus(msg,kind){const bar=$('statusBar');bar.className='status-bar '+(kind||'');bar.textContent=msg;bar.classList.toggle('hidden',!msg);}
 
-  // ── State ────────────────────────────────────────────────────────
-  let allPartners = [];
-  let filtered    = [];
-  let _trendChart = null;   // Chart.js instance (destroyed on modal close)
-  let _drillTeam  = [];     // member list for team drill modal index
-  let _drillAM    = [];     // member list for AM drill modal index
+// ── Load ──
+function loadDashboard(){
+  setStatus('Loading data from master sheet…','loading');
+  fetch(API_URL+'?action=getDashboard&gid='+encodeURIComponent(user.gid))
+    .then(r=>r.json()).then(res=>{
+      if(!res.success){setStatus(res.message||'Failed.','error');return;}
+      state.partners     =res.partners||[];
+      state.myPartners   =res.myPartners||[];
+      state.team         =res.teamBreakdown||[];
+      state.amPerf       =res.amPerformance||[];
+      state.summary      =res.summary;
+      state.overallProject=res.overallProject;
+      state.filterOptions=res.filterOptions||{states:[],cities:[],owners:[]};
+      state.myZones      =res.myZones||[];
+      state.runRate      =res.dailyRunRate||0;
+      state.yesterdayMTD =res.yesterdayMTD||0;
+      state.todayMTD     =res.summary?res.summary.currentMonthPremium:0;
+      renderZoneChips();
+      populateFilterOptions();
+      renderOverall();
+      renderKpiRow();
+      renderTable();
+      renderCharts();
+      setStatus('','');
+      loadDailyTracking();
+    }).catch(err=>setStatus('Connection error: '+err.message,'error'));
+}
 
-  // ── Load ─────────────────────────────────────────────────────────
-  function load() {
-    setStatus('Loading data…', 'loading');
-    fetch(API_URL + '?action=getDashboard&gid=' + encodeURIComponent(peUser.gid))
-      .then(r => r.json())
-      .then(res => {
-        $('loader').style.display = 'none';
-        if (!res.success) { setStatus(res.message || 'Failed to load data.', 'error'); return; }
-        setStatus('', '');
+function loadDailyTracking(){
+  fetch(API_URL+'?action=getDailyTracking&gid='+encodeURIComponent(user.gid))
+    .then(r=>r.json()).then(res=>{
+      if(!res.success) return;
+      state.dailyHistory =res.history||[];
+      state.runRate      =res.runRate||0;
+      state.todayMTD     =res.todayMTD||state.todayMTD;
+      state.yesterdayMTD =res.yesterdayMTD||0;
+      renderRunRateStrip();
+    }).catch(()=>{});
+}
 
-        window._dashData = res;          // v9: global access for modals
-        allPartners      = res.partners || [];
-        window.allPartners = allPartners;
+function renderZoneChips(){
+  const c=$('zoneChips');if(!c)return;
+  c.innerHTML=state.myZones.length?'Zone: '+state.myZones.map(z=>`<span class="role-chip">${safe(z)}</span>`).join(' '):'';
+}
 
-        buildFilters(res.filterOptions);
-        applyFilters();
-        renderKPIs(allPartners, 'kpiGrid');
-        renderMyPartners(res.myPartners);
-        renderTeam(res.teamBreakdown, res.amPerformance);
-        renderAM(res.amPerformance);
-      })
-      .catch(e => {
-        $('loader').style.display = 'none';
-        setStatus('Connection error: ' + e.message, 'error');
-      });
-  }
+// ── Overview ──
+function renderOverall(){
+  const op=state.overallProject;if(!op)return;
+  $('op-totalPartners').textContent=fmtInt(op.totalPartners);
+  $('op-active').textContent=fmtInt(op.activePartners);
+  $('op-inactive').textContent=fmtInt(op.inactivePartners);
+  $('op-business').textContent=fmtINR(op.businessGenerated);
+  const mom=op.momPct;
+  $('op-mom').textContent=(mom>=0?'+':'')+mom+'%';
+  const pill=$('op-momPill');
+  pill.classList.remove('pill-green','pill-red');
+  pill.classList.add(mom>=0?'pill-green':'pill-red');
+  $('op-ach').textContent=op.achievementPct+'%';
+  $('op-connected').textContent=fmtInt(op.connectedPartners)+' / '+fmtInt(op.totalPartners);
+  $('op-conn').textContent=fmtInt(op.connectedPartners);
+  $('op-notconn').textContent=fmtInt(op.nonConnectedPartners);
+  $('op-mtd').textContent=fmtINR(op.businessGenerated);
+  $('op-lmtd').textContent=fmtINR(op.lmtd||0);
+  $('op-mtdSub').textContent=(mom>=0?'▲ +':'▼ ')+Math.abs(mom)+'% vs last month';
+  $('op-mtdSub').className='kpi-sub '+(mom>=0?'pos':'neg');
+  $('op-maxpot').textContent=fmtINR(op.maxPotential);
+  $('op-overallpot').textContent=fmtINR(op.overallPotential);
+  $('op-target').textContent=fmtINR(op.target);
+  $('op-maxAch').textContent=op.maxPotAchPct+'%';
+  $('op-calls').textContent=fmtInt(op.calls);
+  $('op-visits').textContent=fmtInt(op.visits);
+  $('op-growth').textContent=fmtInt(op.growthCount);
+  $('op-degrowth').textContent=fmtInt(op.degrowthCount);
+}
 
-  // ── Filters ──────────────────────────────────────────────────────
-  function buildFilters(opts) {
-    if (opts) {
-      populateSelect($('filterZone'),  opts.zones  || [], 'All Zones');
-      populateSelect($('filterState'), opts.states || [], 'All States');
-      populateSelect($('filterOwner'), opts.owners || [], 'All Owners');
-    } else {
-      populateSelect($('filterZone'),  [...new Set(allPartners.map(p => p.zone).filter(Boolean))].sort(),  'All Zones');
-      populateSelect($('filterState'), [...new Set(allPartners.map(p => p.state).filter(Boolean))].sort(), 'All States');
-      populateSelect($('filterOwner'), [...new Set(allPartners.map(p => p.ownerName).filter(Boolean))].sort(), 'All Owners');
-    }
-  }
-  function populateSelect(sel, vals, label) {
-    if (!sel) return;
-    sel.innerHTML = `<option value="">${label}</option>` +
-      vals.map(v => `<option value="${safe(v)}">${safe(v)}</option>`).join('');
-  }
+// ── Charts ──
+const CHART_COLORS={
+  green:'rgba(22,163,74,1)', greenLight:'rgba(22,163,74,0.15)',
+  red:'rgba(220,38,38,1)',   redLight:'rgba(220,38,38,0.15)',
+  blue:'rgba(37,99,235,1)',  blueLight:'rgba(37,99,235,0.15)',
+  amber:'rgba(245,158,11,1)',amberLight:'rgba(245,158,11,0.15)',
+  purple:'rgba(147,51,234,1)',purpleLight:'rgba(147,51,234,0.15)'
+};
 
-  ['searchInput','filterZone','filterState','filterOwner'].forEach(id => {
-    const el = $(id); if (!el) return;
-    el.addEventListener('input',  applyFilters);
-    el.addEventListener('change', applyFilters);
-  });
-  $('btnClear').addEventListener('click', () => {
-    ['searchInput','filterZone','filterState','filterOwner'].forEach(id => { const el=$(id); if(el) el.value=''; });
-    applyFilters();
-  });
+function destroyChart(name){if(state.charts[name]){state.charts[name].destroy();state.charts[name]=null;}}
 
-  function applyFilters() {
-    const q     = ($('searchInput').value || '').toLowerCase();
-    const zone  = ($('filterZone').value  || '');
-    const state = ($('filterState').value || '');
-    const owner = ($('filterOwner').value || '');
-    filtered = allPartners.filter(p => {
-      if (q && !((p.name||'').toLowerCase().includes(q) || (p.empId||p.gcd||p.gid||'').toLowerCase().includes(q))) return false;
-      if (zone  && p.zone      !== zone)  return false;
-      if (state && p.state     !== state) return false;
-      if (owner && p.ownerName !== owner) return false;
-      return true;
-    });
-    renderTable(filtered);
-    renderKPIs(filtered, 'kpiGrid');
-  }
-
-  // ── All Partners Table (v9: VIEW button added) ────────────────────
-  function renderTable(rows) {
-    const tbody = $('partnerBody');
-    const empty = $('tableEmpty');
-    const count = $('tableCount');
-    if (!rows.length) {
-      tbody.innerHTML = '';
-      if (empty) empty.style.display = 'block';
-      if (count) count.textContent = '';
-      return;
-    }
-    if (empty) empty.style.display = 'none';
-    if (count) count.textContent = `Showing ${rows.length.toLocaleString('en-IN')} of ${allPartners.length.toLocaleString('en-IN')} partners`;
-
-    tbody.innerHTML = rows.map((p, i) => {
-      const m = mom(p), a = ach(p);
-      const idx = allPartners.indexOf(p);
-      return `<tr style="cursor:pointer" data-idx="${idx}">
-        <td>${i + 1}</td>
-        <td><strong>${safe(p.name)}</strong>${p.empId||p.gid ? `<br><small style="color:#94a3b8">${safe(p.empId||p.gid)}</small>` : ''}</td>
-        <td>${safe(p.zone||'—')}</td>
-        <td>${safe(p.state||'—')}</td>
-        <td>${safe(p.city||'—')}</td>
-        <td><span class="badge badge-gray">${safe(p.ownerRole||'—')}</span></td>
-        <td>${safe(p.ownerName||'—')}</td>
-        <td>${statusBadge(statusStr(p))}</td>
-        <td>${p.uniqueStatus ? statusBadge(p.uniqueStatus) : '—'}</td>
-        <td class="num-col">${fmtINR(ftd(p))}</td>
-        <td class="num-col ${m>=0?'kpi-pos':'kpi-neg'}">${fmtINR(mtd(p))}</td>
-        <td class="num-col">${fmtINR(lmtd(p))}</td>
-        <td class="num-col ${m>=0?'kpi-pos':'kpi-neg'}">${m>=0?'+':''}${m.toFixed(1)}%</td>
-        <td class="num-col">${fmtINR(net(p))}</td>
-        <td class="num-col">${fmtINR(tgt(p))}</td>
-        <td class="num-col ${a>=100?'kpi-pos':''}">${a.toFixed(1)}%</td>
-        <td class="num-col">${fmtN(amon(p))}</td>
-        <td class="num-col">${fmtINR(abiz(p))}</td>
-        <td class="num-col">${fmtN(p.calls||0)}</td>
-        <td class="num-col">${fmtN(p.visits||0)}</td>
-        <td><button class="btn-view-sm" onclick="event.stopPropagation();openPartnerModal(window.allPartners[${idx}])">VIEW</button></td>
-      </tr>`;
-    }).join('');
-
-    tbody.querySelectorAll('tr').forEach(tr => {
-      tr.addEventListener('click', () => openPartnerModal(allPartners[+tr.dataset.idx]));
-    });
-  }
-
-  // ── KPI Strip ────────────────────────────────────────────────────
-  function renderKPIs(rows, gridId) {
-    const el = $(gridId); if (!el) return;
-    const total   = rows.length;
-    const active  = rows.filter(p => p.isActive || (p.status||'').toLowerCase()==='active').length;
-    const totFtd  = rows.reduce((s,p) => s + ftd(p),  0);
-    const totMtd  = rows.reduce((s,p) => s + mtd(p),  0);
-    const totLmt  = rows.reduce((s,p) => s + lmtd(p), 0);
-    const totTgt  = rows.reduce((s,p) => s + tgt(p),  0);
-    const totAch  = totTgt > 0 ? (totMtd / totTgt * 100).toFixed(1) : '0.0';
-    const totMom  = totLmt > 0 ? ((totMtd - totLmt) / totLmt * 100).toFixed(1) : '0.0';
-    const connected = rows.filter(p => p.connected).length;
-    const growth    = rows.filter(p => p.isGrowth).length;
-
-    el.innerHTML = `
-      <div class="kpi-card"><div class="kpi-label">Total Partners</div><div class="kpi-value">${fmtN(total)}</div></div>
-      <div class="kpi-card"><div class="kpi-label">Active</div><div class="kpi-value kpi-pos">${fmtN(active)}</div></div>
-      <div class="kpi-card"><div class="kpi-label">FTD Business</div><div class="kpi-value">${fmtINR(totFtd)}</div></div>
-      <div class="kpi-card"><div class="kpi-label">MTD Business</div><div class="kpi-value ${Number(totMom)>=0?'kpi-pos':'kpi-neg'}">${fmtINR(totMtd)}</div></div>
-      <div class="kpi-card"><div class="kpi-label">LMTD Business</div><div class="kpi-value">${fmtINR(totLmt)}</div></div>
-      <div class="kpi-card"><div class="kpi-label">Target (May)</div><div class="kpi-value">${fmtINR(totTgt)}</div></div>
-      <div class="kpi-card"><div class="kpi-label">Achievement</div><div class="kpi-value ${Number(totAch)>=100?'kpi-pos':''}">${totAch}%</div></div>
-      <div class="kpi-card"><div class="kpi-label">MoM%</div><div class="kpi-value ${Number(totMom)>=0?'kpi-pos':'kpi-neg'}">${Number(totMom)>=0?'+':''}${totMom}%</div></div>
-      <div class="kpi-card"><div class="kpi-label">Connected</div><div class="kpi-value kpi-pos">${fmtN(connected)}</div></div>
-      <div class="kpi-card"><div class="kpi-label">Growth</div><div class="kpi-value kpi-pos">${fmtN(growth)}</div></div>
-    `;
-  }
-
-  // ── My Partners Tab (v9: VIEW button, works for AM too) ──────────
-  function renderMyPartners(myPartners) {
-    // v9: Code.gs now returns myPartners for AM users too
-    const mine = (myPartners && myPartners.length) ? myPartners :
-      allPartners.filter(p => (p.ownerName||'').toLowerCase() === (peUser.name||'').toLowerCase());
-
-    renderKPIs(mine, 'myKpiGrid');
-    const tbody = $('myBody'); if (!tbody) return;
-
-    if (!mine.length) {
-      tbody.innerHTML = `<tr><td colspan="14">
-        <div class="empty-state">
-          <div class="empty-state-icon">📋</div>
-          <div class="empty-state-msg">No partners directly assigned to you</div>
-          <div class="empty-state-sub">Partners appear here when you are the listed owner</div>
-        </div></td></tr>`;
-      return;
-    }
-    tbody.innerHTML = mine.map((p, i) => {
-      const m = mom(p), a = ach(p);
-      return `<tr style="cursor:pointer" onclick="openPartnerModal(window._dashData.myPartners[${i}]||window.allPartners[${allPartners.indexOf(p)}])">
-        <td>${i+1}</td>
-        <td><strong>${safe(p.name)}</strong>${p.gid?`<br><small style="color:#94a3b8">${safe(p.gid)}</small>`:''}</td>
-        <td>${safe(p.zone||'—')}</td><td>${safe(p.state||'—')}</td><td>${safe(p.city||'—')}</td>
-        <td class="num-col">${fmtINR(ftd(p))}</td>
-        <td class="num-col ${mtd(p)>0?'kpi-pos':''}">${fmtINR(mtd(p))}</td>
-        <td class="num-col">${fmtINR(lmtd(p))}</td>
-        <td class="num-col ${m>=0?'kpi-pos':'kpi-neg'}">${m>=0?'+':''}${m.toFixed(1)}%</td>
-        <td class="num-col">${fmtINR(tgt(p))}</td>
-        <td class="num-col ${a>=100?'kpi-pos':''}">${a.toFixed(1)}%</td>
-        <td class="num-col">${fmtN(p.calls||0)}</td>
-        <td class="num-col">${fmtN(p.visits||0)}</td>
-        <td><button class="btn-view-sm" onclick="event.stopPropagation();openPartnerModal(window._dashData.myPartners[${i}])">VIEW</button></td>
-      </tr>`;
-    }).join('');
-  }
-
-  // ── Team Breakdown Tab (v9: member cards with Details drill-down) ─
-  function renderTeam(breakdown, amPerformance) {
-    const container = $('teamContent'); if (!container) return;
-
-    // Build unified member list
-    const members  = [];
-    const seenKeys = new Set();
-
-    const addMember = (role, name, partnerCount, states, summary, partnerList) => {
-      const key = role + '|' + name;
-      if (seenKeys.has(key)) return;
-      seenKeys.add(key);
-      members.push({ role, name, partnerCount: partnerCount||0, states: states||[], summary: summary||{}, partnerList: partnerList||[] });
-    };
-
-    if (breakdown && breakdown.length) {
-      breakdown.forEach(m => addMember(
-        m.role || m.ownerRole || '—',
-        m.name || m.ownerName || '—',
-        m.partnerCount || (m.partnerList||[]).length,
-        m.states || [],
-        m.summary || {},
-        m.partnerList || []
-      ));
-    }
-    if (amPerformance && amPerformance.length) {
-      amPerformance.forEach(m => addMember(
-        'AM', m.name || '—',
-        m.partnerCount || 0,
-        m.states || [],
-        m.summary || {},
-        m.partnerList || []
-      ));
-    }
-
-    // Fallback: derive from allPartners
-    if (!members.length && allPartners.length) {
-      const byOwner = {};
-      allPartners.forEach(p => {
-        const key = (p.ownerRole||'?') + '|' + (p.ownerName||'?');
-        if (!byOwner[key]) byOwner[key] = { role:p.ownerRole||'?', name:p.ownerName||'?', partners:[], stateSet:new Set() };
-        byOwner[key].partners.push(p);
-        if (p.state) byOwner[key].stateSet.add(p.state);
-      });
-      Object.values(byOwner).forEach(m => {
-        const pts = m.partners;
-        const sumMtd  = pts.reduce((s,p)=>s+mtd(p),0);
-        const sumLmtd = pts.reduce((s,p)=>s+lmtd(p),0);
-        const sumTgt  = pts.reduce((s,p)=>s+tgt(p),0);
-        const act     = pts.filter(p=>p.isActive).length;
-        const conn    = pts.filter(p=>p.connected).length;
-        addMember(m.role, m.name, pts.length, [...m.stateSet], {
-          currentMonthPremium:  sumMtd, prevMonthPremium: sumLmtd,
-          totalTarget:          sumTgt,
-          achievementPct:       sumTgt>0?Math.round(sumMtd/sumTgt*100):0,
-          momPct:               sumLmtd>0?Math.round((sumMtd-sumLmtd)/sumLmtd*100):0,
-          totalMaxPotential:    pts.reduce((s,p)=>s+(p.maxPotential||0),0),
-          totalOverallPotential:pts.reduce((s,p)=>s+(p.overallPotential||0),0),
-          activeCount:          act, inactiveCount:pts.length-act,
-          connectedCount:       conn,
-          totalCalls:           pts.reduce((s,p)=>s+(p.calls||0),0),
-          totalVisits:          pts.reduce((s,p)=>s+(p.visits||0),0)
-        }, pts);
-      });
-      members.sort((a,b)=>(b.summary.currentMonthPremium||0)-(a.summary.currentMonthPremium||0));
-    }
-
-    _drillTeam = members;
-
-    if (!members.length) {
-      container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🏢</div><div class="empty-state-msg">No team data available</div></div>`;
-      return;
-    }
-
-    container.innerHTML = `
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">
-        <input type="text" id="teamSearch" placeholder="Search member…" class="inline-search"/>
-        <select id="teamRoleFilter" class="filter-select" style="min-width:110px;">
-          <option value="">All Roles</option>
-          <option value="ZH">ZH</option><option value="RH">RH</option>
-          <option value="SH">SH</option><option value="RM">RM</option><option value="AM">AM</option>
-        </select>
-        <span id="teamCount" style="font-size:12px;color:#94a3b8;">${members.length} members</span>
-      </div>
-      <div class="team-cards-grid" id="teamCardsGrid"></div>
-    `;
-
-    renderMemberCards(members, 'teamCardsGrid', _drillTeam, openTeamDrill);
-
-    const doFilter = () => {
-      const q    = (document.getElementById('teamSearch').value||'').toLowerCase();
-      const role = document.getElementById('teamRoleFilter').value;
-      const vis  = _drillTeam.filter(m => {
-        if (role && m.role !== role) return false;
-        if (q && !(m.name||'').toLowerCase().includes(q)) return false;
-        return true;
-      });
-      document.getElementById('teamCount').textContent = vis.length + ' members';
-      renderMemberCards(vis, 'teamCardsGrid', _drillTeam, openTeamDrill);
-    };
-    document.getElementById('teamSearch').addEventListener('input', doFilter);
-    document.getElementById('teamRoleFilter').addEventListener('change', doFilter);
-  }
-
-  // ── AM Performance Tab (v9: cards + drill-down) ───────────────────
-  function renderAM(amData) {
-    const container = $('amContent'); if (!container) return;
-
-    let members = [];
-
-    if (amData && amData.length) {
-      members = amData.map(m => ({
-        role: 'AM',
-        name: m.name || m.ownerName || '—',
-        zone: m.zone || (m.zones && m.zones[0]) || '',
-        partnerCount: m.partnerCount || m.partners || m.count || 0,
-        states: m.states || [],
-        summary: m.summary || {
-          currentMonthPremium:   m.mtd    || m.currentMonth || 0,
-          prevMonthPremium:      m.lmtd   || m.prevMonth    || 0,
-          totalTarget:           m.target || 0,
-          achievementPct:        m.target > 0 ? Math.round((m.mtd||0)/m.target*100) : 0,
-          momPct:                m.lmtd   > 0 ? Math.round(((m.mtd||0)-(m.lmtd||0))/(m.lmtd||1)*100) : 0,
-          totalMaxPotential:     m.maxPot || 0,
-          totalOverallPotential: m.overallPotential || 0,
-          activeCount:           m.active || 0,
-          inactiveCount:         (m.partnerCount||0) - (m.active||0),
-          connectedCount:        m.connected || 0,
-          totalCalls:            m.calls  || 0,
-          totalVisits:           m.visits || 0
-        },
-        partnerList: m.partnerList || []
-      }));
-    } else {
-      // Fallback: aggregate from allPartners
-      const byAM = {};
-      allPartners.filter(p => p.ownerRole === 'AM').forEach(p => {
-        const n = p.ownerName || 'Unknown';
-        if (!byAM[n]) byAM[n] = { name:n, zone:p.zone||'', stateSet:new Set(), partners:[] };
-        byAM[n].partners.push(p);
-        if (p.state) byAM[n].stateSet.add(p.state);
-      });
-      members = Object.values(byAM).map(m => {
-        const pts = m.partners;
-        const sumMtd  = pts.reduce((s,p)=>s+mtd(p),0);
-        const sumLmtd = pts.reduce((s,p)=>s+lmtd(p),0);
-        const sumTgt  = pts.reduce((s,p)=>s+tgt(p),0);
-        const act     = pts.filter(p=>p.isActive).length;
-        return {
-          role:'AM', name:m.name, zone:m.zone, states:[...m.stateSet],
-          partnerCount:pts.length,
-          summary:{
-            currentMonthPremium:  sumMtd, prevMonthPremium:sumLmtd,
-            totalTarget:          sumTgt,
-            achievementPct:       sumTgt>0?Math.round(sumMtd/sumTgt*100):0,
-            momPct:               sumLmtd>0?Math.round((sumMtd-sumLmtd)/sumLmtd*100):0,
-            totalMaxPotential:    pts.reduce((s,p)=>s+(p.maxPotential||0),0),
-            totalOverallPotential:pts.reduce((s,p)=>s+(p.overallPotential||0),0),
-            activeCount:          act, inactiveCount:pts.length-act,
-            connectedCount:       pts.filter(p=>p.connected).length,
-            totalCalls:           pts.reduce((s,p)=>s+(p.calls||0),0),
-            totalVisits:          pts.reduce((s,p)=>s+(p.visits||0),0)
-          },
-          partnerList: pts
-        };
-      }).sort((a,b)=>(b.summary.currentMonthPremium||0)-(a.summary.currentMonthPremium||0));
-    }
-
-    _drillAM = members;
-
-    if (!members.length) {
-      container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-msg">No AM data available</div></div>`;
-      return;
-    }
-
-    const zones = [...new Set(members.map(m=>m.zone).filter(Boolean))].sort();
-
-    container.innerHTML = `
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">
-        <input type="text" id="amSearch" placeholder="Search AM name…" class="inline-search"/>
-        <select id="amZoneFilter" class="filter-select" style="min-width:120px;">
-          <option value="">All Zones</option>
-          ${zones.map(z=>`<option value="${safe(z)}">${safe(z)}</option>`).join('')}
-        </select>
-        <span id="amCount" style="font-size:12px;color:#94a3b8;">${members.length} AMs</span>
-      </div>
-      <div class="team-cards-grid" id="amCardsGrid"></div>
-    `;
-
-    renderMemberCards(members, 'amCardsGrid', _drillAM, openAMDrill);
-
-    const doFilter = () => {
-      const q    = (document.getElementById('amSearch').value||'').toLowerCase();
-      const zone = document.getElementById('amZoneFilter').value;
-      const vis  = _drillAM.filter(m => {
-        if (zone && m.zone !== zone) return false;
-        if (q && !(m.name||'').toLowerCase().includes(q)) return false;
-        return true;
-      });
-      document.getElementById('amCount').textContent = vis.length + ' AMs';
-      renderMemberCards(vis, 'amCardsGrid', _drillAM, openAMDrill);
-    };
-    document.getElementById('amSearch').addEventListener('input', doFilter);
-    document.getElementById('amZoneFilter').addEventListener('change', doFilter);
-  }
-
-  // ── Shared: render member cards grid ─────────────────────────────
-  function renderMemberCards(members, containerId, sourceArr, drillFn) {
-    const g = document.getElementById(containerId); if (!g) return;
-    if (!members.length) {
-      g.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🔍</div><div class="empty-state-msg">No members match filters</div></div>`;
-      return;
-    }
-    g.innerHTML = members.map(m => {
-      const s      = m.summary || {};
-      const mom_v  = s.momPct || 0;
-      const momCls = mom_v > 0 ? 'kpi-pos' : mom_v < 0 ? 'kpi-neg' : '';
-      const ach_v  = s.achievementPct || 0;
-      const stSt   = (m.states||[]).slice(0,3).join(', ') + ((m.states||[]).length>3?` +${(m.states||[]).length-3}`:'');
-      const srcIdx = sourceArr.indexOf(m);
-      const fnName = drillFn === openTeamDrill ? 'openTeamDrill' : 'openAMDrill';
-      return `<div class="team-member-card">
-        <div class="tmc-header">
-          <div class="tmc-title-wrap">
-            <div class="tmc-name">${safe(m.name)}</div>
-            <div class="tmc-sub">${safe(m.role)} &bull; ${fmtN(m.partnerCount)} partner${m.partnerCount!==1?'s':''} &bull; ${safe(stSt||m.zone||'—')}</div>
-          </div>
-          <button class="btn-details" onclick="${fnName}(${srcIdx})">Details</button>
-        </div>
-        <div class="tmc-kpis">
-          <div class="tmc-kpi"><div class="tmc-kpi-label">MTD</div><div class="tmc-kpi-val ${(s.currentMonthPremium||0)>0?'kpi-pos':''}">${fmtINR(s.currentMonthPremium||0)}</div></div>
-          <div class="tmc-kpi"><div class="tmc-kpi-label">LMTD</div><div class="tmc-kpi-val">${fmtINR(s.prevMonthPremium||0)}</div></div>
-          <div class="tmc-kpi"><div class="tmc-kpi-label">MoM%</div><div class="tmc-kpi-val ${momCls}">${mom_v>0?'▲ +':mom_v<0?'▼ ':''}${mom_v}%</div></div>
-          <div class="tmc-kpi"><div class="tmc-kpi-label">Target</div><div class="tmc-kpi-val">${fmtINR(s.totalTarget||0)}</div></div>
-          <div class="tmc-kpi"><div class="tmc-kpi-label">Ach%</div><div class="tmc-kpi-val ${ach_v>=100?'kpi-pos':''}">${ach_v}%</div></div>
-          <div class="tmc-kpi"><div class="tmc-kpi-label">Max Pot.</div><div class="tmc-kpi-val">${fmtINR(s.totalMaxPotential||0)}</div></div>
-          <div class="tmc-kpi"><div class="tmc-kpi-label">Overall Pot.</div><div class="tmc-kpi-val">${fmtINR(s.totalOverallPotential||0)}</div></div>
-          <div class="tmc-kpi"><div class="tmc-kpi-label">Active</div><div class="tmc-kpi-val kpi-pos">${fmtN(s.activeCount||0)}</div></div>
-          <div class="tmc-kpi"><div class="tmc-kpi-label">Inactive</div><div class="tmc-kpi-val ${(s.inactiveCount||0)>0?'kpi-neg':''}">${fmtN(s.inactiveCount||0)}</div></div>
-          <div class="tmc-kpi"><div class="tmc-kpi-label">Connected</div><div class="tmc-kpi-val kpi-pos">${fmtN(s.connectedCount||0)}</div></div>
-          <div class="tmc-kpi"><div class="tmc-kpi-label">Calls</div><div class="tmc-kpi-val">${fmtN(s.totalCalls||0)}</div></div>
-          <div class="tmc-kpi"><div class="tmc-kpi-label">Visits</div><div class="tmc-kpi-val">${fmtN(s.totalVisits||0)}</div></div>
-        </div>
-      </div>`;
-    }).join('');
-  }
-
-  // ── Partner list table for drill modals ──────────────────────────
-  function buildPartnerDrillTable(partners) {
-    if (!partners || !partners.length) {
-      return `<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-msg">No partner details available — refresh data</div></div>`;
-    }
-    return `<div class="table-wrap" style="margin-top:14px;">
-      <table class="data-table" style="min-width:900px;">
-        <thead><tr>
-          <th>#</th><th>Partner</th><th>City/State</th>
-          <th class="num-col">Max Pot.</th>
-          <th class="num-col">MTD</th><th class="num-col">LMTD</th><th class="num-col">MoM%</th>
-          <th class="num-col">Target</th><th class="num-col">Ach%</th>
-          <th>Status</th><th>Growth</th>
-          <th class="num-col">Calls</th><th class="num-col">Visits</th>
-          <th>Action</th>
-        </tr></thead>
-        <tbody>${partners.map((p, i) => {
-          const pm  = p.prevMonth > 0 ? ((p.currentMonth-p.prevMonth)/p.prevMonth*100) : 0;
-          const pa  = p.target    > 0 ? (p.currentMonth/p.target*100) : 0;
-          const pmC = pm>=0?'kpi-pos':'kpi-neg';
-          return `<tr>
-            <td>${i+1}</td>
-            <td><strong>${safe(p.name)}</strong><br><small style="color:#94a3b8">${safe(p.gid||p.empId||'')}</small></td>
-            <td>${safe(p.city||'—')}, ${safe(p.state||'—')}</td>
-            <td class="num-col">${fmtINR(p.maxPotential||0)}</td>
-            <td class="num-col ${p.currentMonth>0?'kpi-pos':''}">${fmtINR(p.currentMonth||0)}</td>
-            <td class="num-col">${fmtINR(p.prevMonth||0)}</td>
-            <td class="num-col ${pmC}">${pm>=0?'▲ +':'▼ '}${pm.toFixed(1)}%</td>
-            <td class="num-col">${fmtINR(p.target||0)}</td>
-            <td class="num-col ${pa>=100?'kpi-pos':''}">${pa.toFixed(1)}%</td>
-            <td><span class="badge ${p.isActive?'badge-green':'badge-red'}">${p.isActive?'Active':'Inactive'}</span></td>
-            <td><span class="badge ${p.isGrowth?'badge-green':'badge-red'}">${p.isGrowth?'▲ Growth':'▼ Degrowth'}</span></td>
-            <td class="num-col">${fmtN(p.calls||0)}</td>
-            <td class="num-col">${fmtN(p.visits||0)}</td>
-            <td><button class="btn-view-sm" onclick="openPartnerModal(${JSON.stringify(p).replace(/"/g,'&quot;')})">VIEW</button></td>
-          </tr>`;
-        }).join('')}</tbody>
-      </table>
-    </div>`;
-  }
-
-  // ── Team Drill Modal ─────────────────────────────────────────────
-  window.openTeamDrill = function(idx) {
-    const m = _drillTeam[idx]; if (!m) return;
-    const s = m.summary || {};
-    const mom_v = s.momPct || 0;
-    $('modalTitle').textContent = m.name + ' — ' + m.role + ' Details';
-    $('modalBody').innerHTML = `
-      <div class="modal-kpi-grid" style="margin-bottom:16px;">
-        <div class="modal-kpi"><div class="modal-kpi-label">Role</div><div class="modal-kpi-val">${safe(m.role)}</div></div>
-        <div class="modal-kpi"><div class="modal-kpi-label">Partners</div><div class="modal-kpi-val">${fmtN(m.partnerCount)}</div></div>
-        <div class="modal-kpi"><div class="modal-kpi-label">MTD</div><div class="modal-kpi-val ${(s.currentMonthPremium||0)>0?'kpi-pos':''}">${fmtINR(s.currentMonthPremium||0)}</div></div>
-        <div class="modal-kpi"><div class="modal-kpi-label">LMTD</div><div class="modal-kpi-val">${fmtINR(s.prevMonthPremium||0)}</div></div>
-        <div class="modal-kpi"><div class="modal-kpi-label">MoM%</div><div class="modal-kpi-val ${mom_v>=0?'kpi-pos':'kpi-neg'}">${mom_v>=0?'+':''}${mom_v}%</div></div>
-        <div class="modal-kpi"><div class="modal-kpi-label">Ach%</div><div class="modal-kpi-val">${s.achievementPct||0}%</div></div>
-      </div>
-      <div style="font-size:12px;color:#64748b;margin-bottom:8px;"><strong>States:</strong> ${(m.states||[]).join(', ')||'—'}</div>
-      ${buildPartnerDrillTable(m.partnerList)}
-    `;
-    $('modal').style.display = 'flex';
-  };
-
-  // ── AM Drill Modal ───────────────────────────────────────────────
-  window.openAMDrill = function(idx) {
-    const m = _drillAM[idx]; if (!m) return;
-    const s = m.summary || {};
-    const mom_v = s.momPct || 0;
-    $('modalTitle').textContent = m.name + ' — AM Partner Details';
-    $('modalBody').innerHTML = `
-      <div class="modal-kpi-grid" style="margin-bottom:16px;">
-        <div class="modal-kpi"><div class="modal-kpi-label">Zone</div><div class="modal-kpi-val">${safe(m.zone||'—')}</div></div>
-        <div class="modal-kpi"><div class="modal-kpi-label">Partners</div><div class="modal-kpi-val">${fmtN(m.partnerCount)}</div></div>
-        <div class="modal-kpi"><div class="modal-kpi-label">MTD</div><div class="modal-kpi-val ${(s.currentMonthPremium||0)>0?'kpi-pos':''}">${fmtINR(s.currentMonthPremium||0)}</div></div>
-        <div class="modal-kpi"><div class="modal-kpi-label">LMTD</div><div class="modal-kpi-val">${fmtINR(s.prevMonthPremium||0)}</div></div>
-        <div class="modal-kpi"><div class="modal-kpi-label">MoM%</div><div class="modal-kpi-val ${mom_v>=0?'kpi-pos':'kpi-neg'}">${mom_v>=0?'+':''}${mom_v}%</div></div>
-        <div class="modal-kpi"><div class="modal-kpi-label">Ach%</div><div class="modal-kpi-val">${s.achievementPct||0}%</div></div>
-        <div class="modal-kpi"><div class="modal-kpi-label">Active</div><div class="modal-kpi-val kpi-pos">${fmtN(s.activeCount||0)}</div></div>
-        <div class="modal-kpi"><div class="modal-kpi-label">Connected</div><div class="modal-kpi-val kpi-pos">${fmtN(s.connectedCount||0)}</div></div>
-        <div class="modal-kpi"><div class="modal-kpi-label">Max Pot.</div><div class="modal-kpi-val">${fmtINR(s.totalMaxPotential||0)}</div></div>
-      </div>
-      <div style="font-size:12px;color:#64748b;margin-bottom:8px;"><strong>States:</strong> ${(m.states||[]).join(', ')||'—'}</div>
-      ${buildPartnerDrillTable(m.partnerList)}
-    `;
-    $('modal').style.display = 'flex';
-  };
-
-  // ── Partner Modal (v9: 14-month trend chart) ─────────────────────
-  window.openPartnerModal = function(p) {
-    if (!p) return;
-    if (typeof p === 'string') { try { p = JSON.parse(p); } catch(e) { return; } }
-    $('modalTitle').textContent = p.name || 'Partner Details';
-    const m = mom(p), a = ach(p);
-    const monthlyData   = p.monthlyData || [];
-    const monthlyLabels = p.monthLabels || (window._dashData && window._dashData.monthLabels) || [];
-
-    $('modalBody').innerHTML = `
-      <div class="modal-section">
-        <div class="modal-section-title">Partner Info</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px;">
-          <div><span style="color:#94a3b8">GID / ID:</span> <strong>${safe(p.gid||p.empId||'—')}</strong></div>
-          <div><span style="color:#94a3b8">Zone:</span> <strong>${safe(p.zone||'—')}</strong></div>
-          <div><span style="color:#94a3b8">State:</span> <strong>${safe(p.state||'—')}</strong></div>
-          <div><span style="color:#94a3b8">City:</span> <strong>${safe(p.city||'—')}</strong></div>
-          <div><span style="color:#94a3b8">Status:</span> ${statusBadge(statusStr(p))}</div>
-          <div><span style="color:#94a3b8">Growth:</span> <span class="${p.isGrowth?'kpi-pos':'kpi-neg'}">${p.isGrowth?'▲ Growth':'▼ Degrowth'}</span></div>
-          <div><span style="color:#94a3b8">Owner:</span> <strong>${safe(p.ownerName||'—')} <span class="badge badge-gray" style="font-size:10px;">${safe(p.ownerRole||'')}</span></strong></div>
-          <div><span style="color:#94a3b8">Connected:</span> <span class="${p.connected?'kpi-pos':'kpi-neg'}">${p.connected?'✓ Yes':'✗ No'}</span></div>
-        </div>
-      </div>
-
-      <div class="modal-section">
-        <div class="modal-section-title">Business Performance</div>
-        <div class="modal-kpi-grid">
-          <div class="modal-kpi"><div class="modal-kpi-label">FTD</div><div class="modal-kpi-val">${fmtINR(ftd(p))}</div></div>
-          <div class="modal-kpi"><div class="modal-kpi-label">MTD (May'26)</div><div class="modal-kpi-val ${mtd(p)>0?'kpi-pos':mtd(p)<0?'kpi-neg':''}">${fmtINR(mtd(p))}</div></div>
-          <div class="modal-kpi"><div class="modal-kpi-label">LMTD (Apr'26)</div><div class="modal-kpi-val">${fmtINR(lmtd(p))}</div></div>
-          <div class="modal-kpi"><div class="modal-kpi-label">MoM%</div><div class="modal-kpi-val ${m>=0?'kpi-pos':'kpi-neg'}">${m>=0?'+':''}${m.toFixed(1)}%</div></div>
-          <div class="modal-kpi"><div class="modal-kpi-label">Max Potential</div><div class="modal-kpi-val">${fmtINR(p.maxPotential||0)}</div></div>
-          <div class="modal-kpi"><div class="modal-kpi-label">Overall Pot.</div><div class="modal-kpi-val">${fmtINR(p.overallPotential||0)}</div></div>
-          <div class="modal-kpi"><div class="modal-kpi-label">Target (May)</div><div class="modal-kpi-val">${p.target>0?fmtINR(p.target):'Not set'}</div></div>
-          <div class="modal-kpi"><div class="modal-kpi-label">Achievement</div><div class="modal-kpi-val ${a>=100?'kpi-pos':''}">${a.toFixed(1)}%</div></div>
-          <div class="modal-kpi"><div class="modal-kpi-label">Calls / Visits</div><div class="modal-kpi-val">${fmtN(p.calls||0)} / ${fmtN(p.visits||0)}</div></div>
-        </div>
-      </div>
-
-      ${monthlyData.length ? `
-      <div class="modal-section">
-        <div class="modal-section-title">14-Month Business Trend</div>
-        <canvas id="modalTrendChart" height="180" style="width:100%;"></canvas>
-      </div>` : ''}
-
-      ${p.remark ? `
-      <div class="modal-section">
-        <div class="modal-section-title">Remark</div>
-        <p style="font-size:13px;color:#475569;background:#f8fafc;padding:10px;border-radius:8px;">${safe(p.remark)}</p>
-      </div>` : ''}
-    `;
-
-    // Render 14-month trend chart
-    if (monthlyData.length && typeof Chart !== 'undefined') {
-      if (_trendChart) { try { _trendChart.destroy(); } catch(e){} _trendChart = null; }
-      const ctx = document.getElementById('modalTrendChart');
-      if (ctx) {
-        const labels = monthlyLabels.length ? monthlyLabels : monthlyData.map((_,i) => 'M'+(i+1));
-        _trendChart = new Chart(ctx, {
-          type: 'line',
-          data: {
-            labels,
-            datasets: [{
-              label:                'Business (₹)',
-              data:                 monthlyData,
-              borderColor:         '#3b82f6',
-              backgroundColor:     'rgba(59,130,246,0.08)',
-              pointBackgroundColor:'#3b82f6',
-              pointRadius:          4,
-              pointHoverRadius:     6,
-              fill:                 true,
-              tension:              0.35
-            }]
-          },
-          options: {
-            responsive: true,
-            plugins: {
-              legend: { display: false },
-              tooltip: { callbacks: { label: c => fmtINR(c.parsed.y) } }
-            },
-            scales: {
-              y: {
-                beginAtZero: true,
-                ticks: {
-                  callback: v =>
-                    v >= 1e7 ? '₹'+(v/1e7).toFixed(1)+'Cr' :
-                    v >= 1e5 ? '₹'+(v/1e5).toFixed(1)+'L'  :
-                    v >= 1e3 ? '₹'+(v/1e3).toFixed(0)+'K'  : '₹'+v
-                }
-              }
-            }
-          }
-        });
+function makeDoughnut(canvasId, labels, data, colors, name){
+  destroyChart(name);
+  const canvas=$(canvasId);if(!canvas)return;
+  const total=data.reduce((a,b)=>a+b,0);
+  state.charts[name]=new Chart(canvas,{
+    type:'doughnut',
+    data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:0,hoverOffset:8,borderRadius:4}]},
+    options:{
+      cutout:'72%',responsive:true,maintainAspectRatio:false,
+      animation:{animateScale:true,animateRotate:true,duration:600,easing:'easeOutQuart'},
+      plugins:{
+        legend:{position:'bottom',labels:{boxWidth:10,font:{size:11},padding:12,color:'#64748b'}},
+        tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${ctx.raw} (${total?Math.round(ctx.raw/total*100):0}%)`}},
+        beforeDraw:function(chart){
+          const{width,height,ctx}=chart;ctx.save();
+          const cx=width/2,cy=height/2-12;
+          ctx.textAlign='center';ctx.textBaseline='middle';
+          ctx.font='700 22px Inter,-apple-system,sans-serif';ctx.fillStyle='#1e293b';
+          ctx.fillText(total.toLocaleString('en-IN'),cx,cy);
+          ctx.font='500 10px Inter,-apple-system,sans-serif';ctx.fillStyle='#94a3b8';
+          ctx.fillText('TOTAL',cx,cy+18);ctx.restore();
+        }
       }
     }
+  });
+}
 
-    $('modal').style.display = 'flex';
-  };
+function renderCharts(){
+  const op=state.overallProject;if(!op)return;
+  makeDoughnut('chartActivity',['Active','Inactive'],[op.activePartners,op.inactivePartners],[CHART_COLORS.green,CHART_COLORS.red],'activity');
+  makeDoughnut('chartConnect',['Connected','Not Connected'],[op.connectedPartners,op.nonConnectedPartners],[CHART_COLORS.blue,CHART_COLORS.amber],'connect');
+  makeDoughnut('chartGrowth',['Growth','Degrowth'],[op.growthCount,op.degrowthCount],[CHART_COLORS.green,CHART_COLORS.red],'growth');
+}
 
-  // Keep backward compat (some inline onclick calls use openModal)
-  window.openModal = window.openPartnerModal;
+// ── KPI Row ──
+function renderKpiRow(){const s=state.summary;if(!s)return;$('kpiRow').innerHTML=renderKpis(s);}
+function renderKpis(s){
+  const mom=s.momPct;
+  return `
+  <div class="kpi-mini"><span class="kpi-mini-icon">👥</span><div><div class="kpi-mini-label">Partners</div><div class="kpi-mini-val">${fmtInt(s.totalPartners)}</div></div></div>
+  <div class="kpi-mini"><span class="kpi-mini-icon">📈</span><div><div class="kpi-mini-label">Max Potential</div><div class="kpi-mini-val">${fmtINR(s.totalMaxPotential)}</div></div></div>
+  <div class="kpi-mini"><span class="kpi-mini-icon">🏦</span><div><div class="kpi-mini-label">Overall Potential</div><div class="kpi-mini-val">${fmtINR(s.totalOverallPotential)}</div></div></div>
+  <div class="kpi-mini"><span class="kpi-mini-icon">🎯</span><div><div class="kpi-mini-label">Target (May'26)</div><div class="kpi-mini-val">${fmtINR(s.totalTarget)}</div></div></div>
+  <div class="kpi-mini" style="background:linear-gradient(135deg,#0f172a,#1e3a5f);"><span class="kpi-mini-icon">⚡</span><div><div class="kpi-mini-label" style="color:rgba(255,255,255,.5);">FTD (Today)</div><div class="kpi-mini-val" style="color:#fbbf24;"><b>${fmtINR(s.totalFTD||0)}</b></div></div></div>
+  <div class="kpi-mini"><span class="kpi-mini-icon">📅</span><div><div class="kpi-mini-label">MTD (May'26)</div><div class="kpi-mini-val pos">${fmtINR(s.currentMonthPremium)}</div><div class="kpi-mini-foot ${mom>=0?'pos':'neg'}">${mom>=0?'▲ +':'▼ '}${Math.abs(mom)}% MoM</div></div></div>
+  <div class="kpi-mini"><span class="kpi-mini-icon">📆</span><div><div class="kpi-mini-label">LMTD (Apr'26)</div><div class="kpi-mini-val">${fmtINR(s.prevMonthPremium)}</div><div class="kpi-mini-foot">Last month</div></div></div>
+  <div class="kpi-mini"><span class="kpi-mini-icon">🏆</span><div><div class="kpi-mini-label">Achievement</div><div class="kpi-mini-val ${s.achievementPct>=80?'pos':s.achievementPct>=40?'':'neg'}">${s.achievementPct}%</div></div></div>
+  <div class="kpi-mini"><span class="kpi-mini-icon">✅</span><div><div class="kpi-mini-label">Active</div><div class="kpi-mini-val pos">${fmtInt(s.activeCount)}</div><div class="kpi-mini-foot neg">Inactive: ${fmtInt(s.inactiveCount)}</div></div></div>
+  <div class="kpi-mini"><span class="kpi-mini-icon">📞</span><div><div class="kpi-mini-label">Connected</div><div class="kpi-mini-val pos">${fmtInt(s.connectedCount)}</div><div class="kpi-mini-foot neg">Not: ${fmtInt(s.notConnectedCount)}</div></div></div>
+  <div class="kpi-mini"><span class="kpi-mini-icon">📱</span><div><div class="kpi-mini-label">Calls / Visits</div><div class="kpi-mini-val pos">${fmtInt(s.totalCalls)} / ${fmtInt(s.totalVisits)}</div></div></div>`;
+}
 
-  // ── Modal close ──────────────────────────────────────────────────
-  function closeModal() {
-    $('modal').style.display = 'none';
-    if (_trendChart) { try { _trendChart.destroy(); } catch(e){} _trendChart = null; }
-  }
-  $('modalClose').addEventListener('click', closeModal);
-  $('modal').addEventListener('click', e => { if (e.target === $('modal')) closeModal(); });
+function populateFilterOptions(){
+  const{states,cities,owners}=state.filterOptions;
+  fill($('fState'),states,'All states');fill($('fCity'),cities,'All cities');
+  fill($('fOwner'),owners,'All owners');fill($('fStateMine'),states,'All states');
+  fill($('fTeamState'),states,'All states');fill($('fAmState'),states,'All states');
+}
+function fill(sel,arr,ph){if(!sel)return;const cur=sel.value;sel.innerHTML=`<option value="">${ph}</option>`+(arr||[]).map(v=>`<option value="${safe(v)}">${safe(v)}</option>`).join('');sel.value=cur;}
 
-  // ── Start ────────────────────────────────────────────────────────
-  load();
+// ── All Partners ──
+function getFiltered(){
+  const q=$('fSearch').value.trim().toLowerCase(),st=$('fState').value,ct=$('fCity').value;
+  const ow=$('fOwner').value,orole=$('fOwnerRole').value,ac=$('fActive').value;
+  const gw=$('fGrowth').value,cn=$('fConnect').value,bz=$('fBusiness').value;
+  return state.partners.filter(p=>{
+    if(q&&(p.name+' '+p.gid+' '+p.city).toLowerCase().indexOf(q)===-1)return false;
+    if(st&&p.state!==st)return false;if(ct&&p.city!==ct)return false;
+    if(ow&&p.ownerName!==ow)return false;if(orole&&p.ownerRole!==orole)return false;
+    if(ac==='active'&&!p.isActive)return false;if(ac==='inactive'&&p.isActive)return false;
+    if(gw==='growth'&&!p.isGrowth)return false;if(gw==='degrowth'&&p.isGrowth)return false;
+    if(cn==='connected'&&!p.connected)return false;if(cn==='notconnected'&&p.connected)return false;
+    if(bz&&!rangeMatch(p.currentMonth,bz))return false;
+    return true;
+  });
+}
+function rangeMatch(val,range){if(range==='0')return val===0;const parts=range.split('-');const lo=parts[0]===''?-Infinity:parseFloat(parts[0]);const hi=parts[1]===''||parts[1]===undefined?Infinity:parseFloat(parts[1]);return val>=lo&&val<=hi;}
 
+function renderTable(){
+  const list=getFiltered();
+  $('filterCount').textContent=list.length+' of '+state.partners.length+' partners';
+  const tbody=$('partnerTbody');
+  if(!list.length){tbody.innerHTML=`<tr><td colspan="16" class="empty">No partners match filters.</td></tr>`;return;}
+  tbody.innerHTML=list.map(p=>rowHtml(p)).join('');
+  tbody.querySelectorAll('.openModal').forEach(b=>b.addEventListener('click',()=>openModal(b.dataset.gid)));
+}
+
+function rowHtml(p){
+  const mom=p.prevMonth>0?Math.round((p.currentMonth-p.prevMonth)/p.prevMonth*100):0;
+  const teleTag=p.isTele?'<span class="badge badge-amber" style="font-size:9px;margin-left:4px;">Tele-RM</span>':'';
+  return `<tr>
+    <td><div class="partner-name">${safe(p.name)}${teleTag}</div><div class="partner-sub">${safe(p.gid)}</div></td>
+    <td>${safe(p.city)}<div class="partner-sub">${safe(p.state)}</div></td>
+    <td>${safe(p.ownerName)}<div class="partner-sub">${safe(p.ownerRole)}</div></td>
+    <td>${fmtINR(p.maxPotential)}</td><td>${fmtINR(p.overallPotential)}</td><td>${fmtINR(p.target)}</td>
+    <td style="color:#f59e0b;font-weight:700;">${fmtINR(p.ftd||0)}</td>
+    <td class="pos"><b>${fmtINR(p.currentMonth)}</b></td><td>${fmtINR(p.prevMonth)}</td>
+    <td class="${mom>=0?'pos':'neg'}">${mom>=0?'+':''}${mom}%</td>
+    <td><span class="${p.isGrowth?'trend-pos':'trend-neg'}">${p.isGrowth?'▲ Growth':'▼ Degrowth'}</span></td>
+    <td>${p.isActive?'<span class="badge badge-green">Active</span>':'<span class="badge badge-red">Inactive</span>'}</td>
+    <td>${p.connected?'<span class="badge badge-blue">Conn.</span>':'<span class="badge badge-amber">Not</span>'}</td>
+    <td class="pos"><b>${fmtInt(p.calls)}</b></td><td class="pos"><b>${fmtInt(p.visits)}</b></td>
+    <td><button class="btn-link openModal" data-gid="${safe(p.gid)}">View</button></td>
+  </tr>`;
+}
+
+['fSearch','fState','fCity','fOwner','fOwnerRole','fActive','fGrowth','fConnect','fBusiness'].forEach(id=>{
+  const el=$(id);if(!el)return;el.addEventListener(el.tagName==='INPUT'?'input':'change',renderTable);
+});
+$('btnClearFilters').addEventListener('click',()=>{
+  ['fSearch','fState','fCity','fOwner','fOwnerRole','fActive','fGrowth','fConnect','fBusiness'].forEach(id=>{const el=$(id);if(el)el.value='';});
+  renderTable();
+});
+$('btnExportCsv').addEventListener('click',()=>{
+  const list=getFiltered();
+  const h=['GID','Name','City','State','Zone','OwnerRole','OwnerName','MaxPot','OverallPot','Target','FTD','MTD','LMTD','MoM%','Active','Growth','Connected','Calls','Visits','TeleRM'];
+  const rows=list.map(p=>[p.gid,p.name,p.city,p.state,p.zone,p.ownerRole,p.ownerName,p.maxPotential,p.overallPotential,p.target,p.ftd||0,p.currentMonth,p.prevMonth,pct(p.currentMonth,p.prevMonth),p.isActive?'Active':'Inactive',p.isGrowth?'Growth':'Degrowth',p.connected?'Connected':'Not',p.calls,p.visits,p.isTele?'Yes':'No']);
+  const csv=[h,...rows].map(r=>r.map(x=>`"${String(x==null?'':x).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='partners_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
+});
+
+// ── My Partners ──
+function renderMine(){
+  if(user.role==='AM'||isTeleRole())return;
+  const list=state.myPartners||[];
+  if(!list.length){$('kpiRowMine').innerHTML='<div class="empty">No directly assigned partners.</div>';$('mineTbody').innerHTML='';return;}
+  $('kpiRowMine').innerHTML=renderKpis(computeSummary(list));
+  const q=($('fSearchMine').value||'').toLowerCase(),st=$('fStateMine').value;
+  const ac=$('fActiveMine').value,cn=$('fConnectMine').value;
+  const filtered=list.filter(p=>{
+    if(q&&(p.name+' '+p.gid).toLowerCase().indexOf(q)===-1)return false;
+    if(st&&p.state!==st)return false;
+    if(ac==='active'&&!p.isActive)return false;if(ac==='inactive'&&p.isActive)return false;
+    if(cn==='connected'&&!p.connected)return false;if(cn==='notconnected'&&p.connected)return false;
+    return true;
+  });
+  $('mineTbody').innerHTML=filtered.map(p=>{
+    const mom=p.prevMonth>0?Math.round((p.currentMonth-p.prevMonth)/p.prevMonth*100):0;
+    return `<tr>
+      <td><div class="partner-name">${safe(p.name)}</div><div class="partner-sub">${safe(p.gid)}</div></td>
+      <td>${safe(p.city)}<div class="partner-sub">${safe(p.state)}</div></td>
+      <td>${fmtINR(p.maxPotential)}</td><td>${fmtINR(p.overallPotential)}</td><td>${fmtINR(p.target)}</td>
+      <td style="color:#f59e0b;font-weight:700;">${fmtINR(p.ftd||0)}</td>
+      <td class="pos"><b>${fmtINR(p.currentMonth)}</b></td><td>${fmtINR(p.prevMonth)}</td>
+      <td class="${mom>=0?'pos':'neg'}">${mom>=0?'+':''}${mom}%</td>
+      <td><span class="${p.isGrowth?'trend-pos':'trend-neg'}">${p.isGrowth?'▲ Growth':'▼ Degrowth'}</span></td>
+      <td>${p.isActive?'<span class="badge badge-green">Active</span>':'<span class="badge badge-red">Inactive</span>'}</td>
+      <td>${p.connected?'<span class="badge badge-blue">Conn.</span>':'<span class="badge badge-amber">Not</span>'}</td>
+      <td class="pos"><b>${fmtInt(p.calls)}</b></td><td class="pos"><b>${fmtInt(p.visits)}</b></td>
+      <td><button class="btn-link openModal" data-gid="${safe(p.gid)}">View</button></td>
+    </tr>`;
+  }).join('');
+  $('mineTbody').querySelectorAll('.openModal').forEach(b=>b.addEventListener('click',()=>openModal(b.dataset.gid)));
+}
+['fSearchMine','fStateMine','fActiveMine','fConnectMine'].forEach(id=>{const el=$(id);if(!el)return;el.addEventListener(el.tagName==='INPUT'?'input':'change',renderMine);});
+if($('btnClearMine'))$('btnClearMine').addEventListener('click',()=>{['fSearchMine','fStateMine','fActiveMine','fConnectMine'].forEach(id=>{const el=$(id);if(el)el.value='';});renderMine();});
+
+function computeSummary(list){
+  let curr=0,prev=0,mp=0,op=0,tg=0,ftd=0,ac=0,gw=0,cn=0,cl=0,vs=0;
+  list.forEach(p=>{curr+=p.currentMonth;prev+=p.prevMonth;mp+=p.maxPotential;op+=p.overallPotential;tg+=p.target;ftd+=(p.ftd||0);if(p.isActive)ac++;if(p.isGrowth)gw++;if(p.connected)cn++;cl+=p.calls;vs+=p.visits;});
+  return{totalPartners:list.length,totalMaxPotential:mp,totalOverallPotential:op,totalTarget:tg,totalFTD:ftd,currentMonthPremium:curr,prevMonthPremium:prev,activeCount:ac,inactiveCount:list.length-ac,growthCount:gw,degrowthCount:list.length-gw,connectedCount:cn,notConnectedCount:list.length-cn,totalCalls:cl,totalVisits:vs,achievementPct:tg>0?Math.round(curr/tg*100):0,momPct:prev>0?Math.round((curr-prev)/prev*100):0,maxPotAchPct:mp>0?Math.round(curr/mp*100):0};
+}
+
+// ── AM Performance ──
+function renderAm(){
+  if(user.role==='AM'||isTeleRole())return;
+  let list=state.amPerf.slice();
+  const q=($('fAmSearch').value||'').toLowerCase(),st=$('fAmState').value,sort=$('fAmSort').value||'mtd',status=$('fAmStatus').value;
+  if(q)list=list.filter(a=>a.name.toLowerCase().indexOf(q)!==-1);
+  if(st)list=list.filter(a=>a.states.indexOf(st)!==-1);
+  if(status==='active')list=list.filter(a=>a.overallProject.activePartners>0);
+  if(status==='inactive')list=list.filter(a=>a.overallProject.inactivePartners>0);
+  list.sort((a,b)=>{
+    if(sort==='mtd')return b.overallProject.businessGenerated-a.overallProject.businessGenerated;
+    if(sort==='ach')return b.overallProject.achievementPct-a.overallProject.achievementPct;
+    if(sort==='partners')return b.overallProject.totalPartners-a.overallProject.totalPartners;
+    if(sort==='active')return b.overallProject.activePartners-a.overallProject.activePartners;
+    return a.name.localeCompare(b.name);
+  });
+  if(!list.length){$('amGrid').innerHTML='<div class="empty">No AMs match.</div>';return;}
+  $('amGrid').innerHTML=list.map(a=>{
+    const op=a.overallProject,mom=op.momPct;
+    return `<div class="am-card">
+      <div class="am-card-head">
+        <div><div class="am-name">${safe(a.name)}</div><div class="am-role">${fmtInt(op.totalPartners)} partners • ${a.states.slice(0,2).join(', ')}${a.states.length>2?' +'+(a.states.length-2):''}</div></div>
+        <button class="btn-sm openAmDrill" data-name="${safe(a.name)}">Details</button>
+      </div>
+      <div class="am-stats">
+        <div class="as" style="background:linear-gradient(135deg,#0f172a,#1e3a5f);"><div class="as-l" style="color:rgba(255,255,255,.5);">FTD</div><div class="as-v" style="color:#fbbf24;">${fmtINR(op.ftd||a.summary.totalFTD||0)}</div></div>
+        <div class="as"><div class="as-l">MTD</div><div class="as-v pos">${fmtINR(op.businessGenerated)}</div></div>
+        <div class="as"><div class="as-l">LMTD</div><div class="as-v">${fmtINR(op.lmtd||a.summary.prevMonthPremium)}</div></div>
+        <div class="as"><div class="as-l">MoM</div><div class="as-v ${mom>=0?'pos':'neg'}">${mom>=0?'+':''}${mom}%</div></div>
+        <div class="as"><div class="as-l">Ach.</div><div class="as-v ${op.achievementPct>=80?'pos':op.achievementPct>=40?'':'neg'}">${op.achievementPct}%</div></div>
+        <div class="as"><div class="as-l">Active</div><div class="as-v pos">${fmtInt(op.activePartners)}</div></div>
+        <div class="as"><div class="as-l">Inactive</div><div class="as-v neg">${fmtInt(op.inactivePartners)}</div></div>
+        <div class="as"><div class="as-l">Connected</div><div class="as-v pos">${fmtInt(op.connectedPartners)}</div></div>
+        <div class="as"><div class="as-l">Calls</div><div class="as-v pos">${fmtInt(op.calls)}</div></div>
+        <div class="as"><div class="as-l">Visits</div><div class="as-v pos">${fmtInt(op.visits)}</div></div>
+        <div class="as"><div class="as-l">Max Pot.</div><div class="as-v">${fmtINR(op.maxPotential)}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+  $('amGrid').querySelectorAll('.openAmDrill').forEach(b=>b.addEventListener('click',()=>openAmDrill(b.dataset.name)));
+}
+['fAmSearch','fAmState','fAmSort','fAmStatus'].forEach(id=>{const el=$(id);if(!el)return;el.addEventListener(el.tagName==='INPUT'?'input':'change',renderAm);});
+
+function openAmDrill(amName){
+  const am=state.amPerf.find(a=>a.name===amName);if(!am)return;
+  const op=am.overallProject;
+  const rows=am.partners.map(p=>{
+    const mom=p.prevMonth>0?Math.round((p.currentMonth-p.prevMonth)/p.prevMonth*100):0;
+    return `<tr><td><div class="partner-name">${safe(p.name)}</div><div class="partner-sub">${safe(p.gid)}</div></td><td>${safe(p.city)}<div class="partner-sub">${safe(p.state)}</div></td><td>${fmtINR(p.maxPotential)}</td><td>${fmtINR(p.overallPotential)}</td><td>${fmtINR(p.target)}</td><td style="color:#f59e0b;font-weight:700;">${fmtINR(p.ftd||0)}</td><td class="pos"><b>${fmtINR(p.currentMonth)}</b></td><td>${fmtINR(p.prevMonth)}</td><td class="${mom>=0?'pos':'neg'}">${mom>=0?'+':''}${mom}%</td><td><span class="${p.isGrowth?'trend-pos':'trend-neg'}">${p.isGrowth?'▲ Growth':'▼ Degrowth'}</span></td><td>${p.isActive?'<span class="badge badge-green">Active</span>':'<span class="badge badge-red">Inactive</span>'}</td><td>${p.connected?'<span class="badge badge-blue">Conn.</span>':'<span class="badge badge-amber">Not</span>'}</td><td class="pos">${fmtInt(p.calls)}</td><td class="pos">${fmtInt(p.visits)}</td><td><button class="btn-link openModal" data-gid="${safe(p.gid)}">View</button></td></tr>`;
+  }).join('');
+  $('modalBody').innerHTML=`<h2>${safe(am.name)} <span class="role-chip">AM</span></h2><div class="modal-sub">${am.states.join(', ')}</div>
+  <div class="kpi-row">
+    <div class="kpi-mini"><div><div class="kpi-mini-label">Partners</div><div class="kpi-mini-val">${fmtInt(op.totalPartners)}</div></div></div>
+    <div class="kpi-mini" style="background:linear-gradient(135deg,#0f172a,#1e3a5f);"><div><div class="kpi-mini-label" style="color:rgba(255,255,255,.5);">FTD</div><div class="kpi-mini-val" style="color:#fbbf24;"><b>${fmtINR(op.ftd||0)}</b></div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">MTD</div><div class="kpi-mini-val pos"><b>${fmtINR(op.businessGenerated)}</b></div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">LMTD</div><div class="kpi-mini-val">${fmtINR(op.lmtd||am.summary.prevMonthPremium)}</div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">Target</div><div class="kpi-mini-val">${fmtINR(op.target)}</div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">Ach.</div><div class="kpi-mini-val">${op.achievementPct}%</div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">Max Pot.</div><div class="kpi-mini-val">${fmtINR(op.maxPotential)}</div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">Active</div><div class="kpi-mini-val pos">${fmtInt(op.activePartners)}</div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">Connected</div><div class="kpi-mini-val pos">${fmtInt(op.connectedPartners)}</div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">Calls / Visits</div><div class="kpi-mini-val pos">${fmtInt(op.calls)} / ${fmtInt(op.visits)}</div></div></div>
+  </div>
+  <div class="table-wrap"><table class="ptable"><thead><tr><th>Partner</th><th>City/State</th><th>Max Pot.</th><th>Overall Pot.</th><th>Target</th><th>FTD</th><th>MTD</th><th>LMTD</th><th>MoM%</th><th>Growth</th><th>Status</th><th>Connect</th><th>Calls</th><th>Visits</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  $('partnerModal').classList.remove('hidden');
+  $('modalBody').querySelectorAll('.openModal').forEach(b=>b.addEventListener('click',()=>openModal(b.dataset.gid)));
+}
+
+// ── Team Performance ──
+function renderTeam(){
+  if(user.role==='AM'||isTeleRole())return;
+  let team=state.team||[];
+  const roleF=$('fTeamRole').value,search=($('fTeamSearch').value||'').toLowerCase(),stateF=$('fTeamState').value;
+  if(roleF)team=team.filter(t=>t.role===roleF);
+  if(search)team=team.filter(t=>t.name.toLowerCase().indexOf(search)!==-1);
+  if(stateF)team=team.filter(t=>t.partners.some(p=>p.state===stateF));
+  if(!team.length){$('teamGrid').innerHTML='<div class="empty">No team members match.</div>';return;}
+  $('teamGrid').innerHTML=team.map(t=>{
+    const op=t.overallProject,mom=op.momPct;
+    return `<div class="team-card">
+      <div class="team-card-head"><div><div class="team-name">${safe(t.name)}</div><div class="team-role">${safe(t.role)} • ${fmtInt(op.totalPartners)} partners</div></div><button class="btn-link openTeamMember" data-key="${safe(t.role+'|'+t.name)}">Details</button></div>
+      <div class="team-stats">
+        <div class="ts" style="background:linear-gradient(135deg,#0f172a,#1e3a5f);"><div class="ts-l" style="color:rgba(255,255,255,.5);">FTD</div><div class="ts-v" style="color:#fbbf24;">${fmtINR(op.ftd||t.summary.totalFTD||0)}</div></div>
+        <div class="ts"><div class="ts-l">MTD</div><div class="ts-v pos"><b>${fmtINR(op.businessGenerated)}</b></div></div>
+        <div class="ts"><div class="ts-l">LMTD</div><div class="ts-v">${fmtINR(op.lmtd||t.summary.prevMonthPremium)}</div></div>
+        <div class="ts"><div class="ts-l">MoM</div><div class="ts-v ${mom>=0?'pos':'neg'}">${mom>=0?'+':''}${mom}%</div></div>
+        <div class="ts"><div class="ts-l">Target</div><div class="ts-v">${fmtINR(op.target)}</div></div>
+        <div class="ts"><div class="ts-l">Ach.</div><div class="ts-v ${op.achievementPct>=80?'pos':op.achievementPct>=40?'':'neg'}">${op.achievementPct}%</div></div>
+        <div class="ts"><div class="ts-l">Max Pot.</div><div class="ts-v">${fmtINR(op.maxPotential)}</div></div>
+        <div class="ts"><div class="ts-l">Active</div><div class="ts-v pos">${fmtInt(op.activePartners)}</div></div>
+        <div class="ts"><div class="ts-l">Inactive</div><div class="ts-v neg">${fmtInt(op.inactivePartners)}</div></div>
+        <div class="ts"><div class="ts-l">Connected</div><div class="ts-v pos">${fmtInt(op.connectedPartners)}</div></div>
+        <div class="ts"><div class="ts-l">Calls</div><div class="ts-v pos">${fmtInt(op.calls)}</div></div>
+        <div class="ts"><div class="ts-l">Visits</div><div class="ts-v pos">${fmtInt(op.visits)}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+  $('teamGrid').querySelectorAll('.openTeamMember').forEach(b=>b.addEventListener('click',()=>openTeamModal(b.dataset.key)));
+}
+['fTeamRole','fTeamSearch','fTeamState'].forEach(id=>{const el=$(id);if(!el)return;el.addEventListener(el.tagName==='INPUT'?'input':'change',renderTeam);});
+
+function openTeamModal(key){
+  const member=(state.team||[]).find(t=>(t.role+'|'+t.name)===key);if(!member)return;
+  const op=member.overallProject;
+  const rows=member.partners.map(p=>{
+    const mom=p.prevMonth>0?Math.round((p.currentMonth-p.prevMonth)/p.prevMonth*100):0;
+    return `<tr><td>${safe(p.name)}<div class="partner-sub">${safe(p.gid)}</div></td><td>${safe(p.city)}, ${safe(p.state)}</td><td>${fmtINR(p.maxPotential)}</td><td>${fmtINR(p.overallPotential)}</td><td>${fmtINR(p.target)}</td><td style="color:#f59e0b;font-weight:700;">${fmtINR(p.ftd||0)}</td><td class="pos"><b>${fmtINR(p.currentMonth)}</b></td><td>${fmtINR(p.prevMonth)}</td><td class="${mom>=0?'pos':'neg'}">${mom>=0?'+':''}${mom}%</td><td><span class="${p.isGrowth?'trend-pos':'trend-neg'}">${p.isGrowth?'▲ Growth':'▼ Degrowth'}</span></td><td>${p.isActive?'<span class="badge badge-green">Active</span>':'<span class="badge badge-red">Inactive</span>'}</td><td class="pos">${fmtInt(p.calls)}</td><td class="pos">${fmtInt(p.visits)}</td><td><button class="btn-link openModal" data-gid="${safe(p.gid)}">View</button></td></tr>`;
+  }).join('');
+  $('modalBody').innerHTML=`<h2>${safe(member.name)} <span class="role-chip">${safe(member.role)}</span></h2>
+  <div class="kpi-row">
+    <div class="kpi-mini"><div><div class="kpi-mini-label">Partners</div><div class="kpi-mini-val">${fmtInt(op.totalPartners)}</div></div></div>
+    <div class="kpi-mini" style="background:linear-gradient(135deg,#0f172a,#1e3a5f);"><div><div class="kpi-mini-label" style="color:rgba(255,255,255,.5);">FTD</div><div class="kpi-mini-val" style="color:#fbbf24;"><b>${fmtINR(op.ftd||0)}</b></div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">MTD</div><div class="kpi-mini-val pos">${fmtINR(op.businessGenerated)}</div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">LMTD</div><div class="kpi-mini-val">${fmtINR(op.lmtd||member.summary.prevMonthPremium)}</div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">Target</div><div class="kpi-mini-val">${fmtINR(op.target)}</div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">Ach.</div><div class="kpi-mini-val">${op.achievementPct}%</div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">Active</div><div class="kpi-mini-val pos">${fmtInt(op.activePartners)}</div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">Connected</div><div class="kpi-mini-val pos">${fmtInt(op.connectedPartners)}</div></div></div>
+    <div class="kpi-mini"><div><div class="kpi-mini-label">Calls / Visits</div><div class="kpi-mini-val pos">${fmtInt(op.calls)} / ${fmtInt(op.visits)}</div></div></div>
+  </div>
+  <div class="table-wrap"><table class="ptable"><thead><tr><th>Partner</th><th>City, State</th><th>Max Pot.</th><th>Overall Pot.</th><th>Target</th><th>FTD</th><th>MTD</th><th>LMTD</th><th>MoM%</th><th>Growth</th><th>Status</th><th>Calls</th><th>Visits</th><th>Action</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  $('partnerModal').classList.remove('hidden');
+  $('modalBody').querySelectorAll('.openModal').forEach(b=>b.addEventListener('click',()=>openModal(b.dataset.gid)));
+}
+
+// ── Daily Run Rate ──
+function renderRunRateStrip(){
+  $('rr-today').textContent=fmtINR(state.runRate);
+  $('rr-mtd').textContent=fmtINR(state.todayMTD);
+  $('rr-lmtd').textContent=fmtINR(state.yesterdayMTD);
+}
+
+function renderRunRate(){
+  renderRunRateStrip();
+  const hist=state.dailyHistory;if(!hist||!hist.length)return;
+  const labels=hist.map(h=>h.date.slice(5));
+  const mtdData=hist.map(h=>h.totalMTD);
+  const rrData=hist.map((h,i)=>i===0?0:h.totalMTD-hist[i-1].totalMTD);
+
+  destroyChart('dailyTrend');
+  state.charts.dailyTrend=new Chart($('chartDailyTrend'),{
+    type:'line',
+    data:{labels,datasets:[{label:'Total MTD',data:mtdData,borderColor:CHART_COLORS.blue,backgroundColor:CHART_COLORS.blueLight,fill:true,tension:0.4,pointRadius:4,pointBackgroundColor:CHART_COLORS.blue}]},
+    options:{responsive:true,maintainAspectRatio:false,scales:{y:{ticks:{callback:v=>fmtINR(v)}}},plugins:{legend:{position:'bottom'}}}
+  });
+
+  destroyChart('runRate');
+  state.charts.runRate=new Chart($('chartRunRate'),{
+    type:'bar',
+    data:{labels:labels.slice(1),datasets:[{label:'Daily Run Rate',data:rrData.slice(1),backgroundColor:rrData.slice(1).map(v=>v>=0?CHART_COLORS.green:CHART_COLORS.red),borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,scales:{y:{ticks:{callback:v=>fmtINR(v)}}},plugins:{legend:{position:'bottom'}}}
+  });
+}
+
+// ── Partner Modal ──
+function openModal(gid){
+  const all=[...state.partners,...(state.myPartners||[]),...(state.amPerf||[]).flatMap(a=>a.partners||[]),...(state.team||[]).flatMap(t=>t.partners||[])];
+  const p=all.find(x=>x.gid===gid);if(!p)return;
+  const maxAch=p.maxPotential>0?Math.round(p.currentMonth/p.maxPotential*100):0;
+  const mom=p.prevMonth>0?Math.round((p.currentMonth-p.prevMonth)/p.prevMonth*100):0;
+  const teleLabel=p.isTele?'<span class="badge badge-amber" style="margin-left:8px;">Tele-RM</span>':'';
+  $('modalBody').innerHTML=`
+    <h2>${safe(p.name)} <span class="role-chip">${safe(p.gid)}</span>${teleLabel}</h2>
+    <div class="modal-sub">${safe(p.city)}, ${safe(p.state)}${p.zone?' • Zone: '+safe(p.zone):''} • Owner: ${safe(p.ownerName)} (${safe(p.ownerRole)})</div>
+    <div class="kpi-row">
+      <div class="kpi-mini"><div><div class="kpi-mini-label">Max Potential</div><div class="kpi-mini-val pos">${fmtINR(p.maxPotential)}</div></div></div>
+      <div class="kpi-mini"><div><div class="kpi-mini-label">Overall Potential</div><div class="kpi-mini-val ${p.overallPotential>0?'pos':''}">${fmtINR(p.overallPotential)}</div></div></div>
+      <div class="kpi-mini"><div><div class="kpi-mini-label">Target (May'26)</div><div class="kpi-mini-val">${fmtINR(p.target)}</div></div></div>
+      <div class="kpi-mini" style="background:linear-gradient(135deg,#0f172a,#1e3a5f);"><div><div class="kpi-mini-label" style="color:rgba(255,255,255,.5);">FTD (Today)</div><div class="kpi-mini-val" style="color:#fbbf24;"><b>${fmtINR(p.ftd||0)}</b></div></div></div>
+      <div class="kpi-mini"><div><div class="kpi-mini-label">MTD (May'26)</div><div class="kpi-mini-val ${p.currentMonth>=p.prevMonth?'pos':'neg'}"><b>${fmtINR(p.currentMonth)}</b></div></div></div>
+      <div class="kpi-mini"><div><div class="kpi-mini-label">LMTD (Apr'26)</div><div class="kpi-mini-val">${fmtINR(p.prevMonth)}</div></div></div>
+      <div class="kpi-mini"><div><div class="kpi-mini-label">MoM</div><div class="kpi-mini-val ${mom>=0?'pos':'neg'}">${mom>=0?'+':''}${mom}%</div></div></div>
+      <div class="kpi-mini"><div><div class="kpi-mini-label">Calls</div><div class="kpi-mini-val ${p.calls>0?'pos':''}"><b>${fmtInt(p.calls)}</b></div></div></div>
+      <div class="kpi-mini"><div><div class="kpi-mini-label">Visits</div><div class="kpi-mini-val ${p.visits>0?'pos':''}"><b>${fmtInt(p.visits)}</b></div></div></div>
+    </div>
+    <div class="potential-box">
+      <b>Max-Pot Ach:</b> <span class="${maxAch>=80?'pos':maxAch>=40?'':'neg'}">${maxAch}%</span> &nbsp;|&nbsp;
+      <b>Growth:</b> ${p.isGrowth?'<span class="pos">▲ Growth</span>':'<span class="neg">▼ Degrowth</span>'} &nbsp;|&nbsp;
+      <b>Status:</b> ${p.isActive?'<span class="pos">Active</span>':'<span class="neg">Inactive</span>'}
+    </div>
+    <h3>13-Month History</h3>
+    <canvas id="trendChart" style="max-height:240px;"></canvas>
+    <h3>Connect Status — Calls: <span class="pos"><b>${fmtInt(p.calls)}</b></span> &nbsp; Visits: <span class="pos"><b>${fmtInt(p.visits)}</b></span></h3>
+    <div class="row-flex">
+      <div>${p.isActive?'<span class="badge badge-green">Active</span>':'<span class="badge badge-red">Inactive</span>'}</div>
+      <div>${p.connected?'<span class="badge badge-blue">Connected</span>':'<span class="badge badge-amber">Not Connected</span>'}</div>
+    </div>
+    <h3>Monthly Business (Apr'25 → Apr'26)</h3>
+    <div class="table-wrap"><table class="ptable compact"><thead><tr>${MONTHS.map(m=>`<th>${m}</th>`).join('')}<th>May'26 (MTD)</th></tr></thead><tbody><tr>${p.monthlyData.map(v=>`<td>${fmtINR(v)}</td>`).join('')}<td class="pos"><b>${fmtINR(p.currentMonth)}</b></td></tr></tbody></table></div>
+    <h3>Remark</h3>
+    <textarea id="remarkBox" rows="3">${safe(p.remark||'')}</textarea>
+    <button class="btn-primary" id="btnSaveRemark">Save Remark</button>
+    <div id="remarkStatus" class="remark-status"></div>`;
+  $('partnerModal').classList.remove('hidden');
+
+  const allData=[...p.monthlyData, p.currentMonth];
+  const allLabels=[...MONTHS, "May'26"];
+  const ptColors=allData.map((v,i)=>i===0?'#94a3b8':v>=(allData[i-1]||0)?CHART_COLORS.green:CHART_COLORS.red);
+  new Chart($('trendChart'),{
+    type:'line',
+    data:{labels:allLabels,datasets:[
+      {label:'Monthly Business',data:allData,borderColor:'#2563eb',backgroundColor:CHART_COLORS.blueLight,fill:true,tension:0.3,pointBackgroundColor:ptColors,pointRadius:5,segment:{borderColor:ctx=>allData[ctx.p1DataIndex]>=(allData[ctx.p0DataIndex]||0)?CHART_COLORS.green:CHART_COLORS.red}},
+      {label:"May'26 Target",data:new Array(allLabels.length-1).fill(null).concat([p.target]),borderColor:'#9333ea',borderDash:[5,5],pointRadius:0,fill:false}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,scales:{y:{ticks:{callback:v=>fmtINR(v)}}},plugins:{legend:{position:'bottom'}}}
+  });
+
+  $('btnSaveRemark').addEventListener('click',()=>{
+    const r=$('remarkBox').value;$('remarkStatus').textContent='Saving…';
+    fetch(API_URL+'?action=saveRemark&gid='+encodeURIComponent(user.gid)+'&partnerGid='+encodeURIComponent(p.gid)+'&remark='+encodeURIComponent(r))
+      .then(r=>r.json()).then(res=>{$('remarkStatus').textContent=res.success?'✓ Saved':'✗ '+(res.message||'Failed');if(res.success)p.remark=r;})
+      .catch(err=>$('remarkStatus').textContent='✗ '+err.message);
+  });
+}
+
+$('modalClose').addEventListener('click',()=>$('partnerModal').classList.add('hidden'));
+$('modalBackdrop').addEventListener('click',()=>$('partnerModal').classList.add('hidden'));
+
+loadDashboard();
 })();
