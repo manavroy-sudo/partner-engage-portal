@@ -88,12 +88,12 @@
   function renderOverall() {
     const total = allPartners.length;
     const active = allPartners.filter(p => (p.status || '').toLowerCase() === 'active').length;
-    const ftd = allPartners.reduce((s, p) => s + (Number(p.ftd) || 0), 0);
-    const mtd = allPartners.reduce((s, p) => s + (Number(p.mtd) || 0), 0);
-    const lmtd = allPartners.reduce((s, p) => s + (Number(p.lmtd) || 0), 0);
-    const target = allPartners.reduce((s, p) => s + (Number(p.target) || 0), 0);
-    const calls = allPartners.reduce((s, p) => s + (Number(p.calls) || 0), 0);
-    const visits = allPartners.reduce((s, p) => s + (Number(p.visits) || 0), 0);
+    const ftd = allPartners.reduce((s, p) => s + (Number(p.ftd||0) || 0), 0);
+    const mtd = allPartners.reduce((s, p) => s + (Number(p.currentMonth||p.mtd||0) || 0), 0);
+    const lmtd = allPartners.reduce((s, p) => s + (Number(p.prevMonth||p.lmtd||0) || 0), 0);
+    const target = allPartners.reduce((s, p) => s + (Number(p.target||0) || 0), 0);
+    const calls = allPartners.reduce((s, p) => s + (Number(p.calls||0) || 0), 0);
+    const visits = allPartners.reduce((s, p) => s + (Number(p.visits||0) || 0), 0);
     const ach = target > 0 ? (mtd / target * 100).toFixed(1) : '0.0';
     const mom = lmtd > 0 ? ((mtd - lmtd) / lmtd * 100).toFixed(1) : '0.0';
 
@@ -117,12 +117,12 @@
       if (!byZone[z]) byZone[z] = { zone: z, total: 0, active: 0, ftd: 0, mtd: 0, lmtd: 0, target: 0, calls: 0, visits: 0, partners: [] };
       byZone[z].total++;
       if ((p.status || '').toLowerCase() === 'active') byZone[z].active++;
-      byZone[z].ftd += Number(p.ftd) || 0;
-      byZone[z].mtd += Number(p.mtd) || 0;
-      byZone[z].lmtd += Number(p.lmtd) || 0;
-      byZone[z].target += Number(p.target) || 0;
-      byZone[z].calls += Number(p.calls) || 0;
-      byZone[z].visits += Number(p.visits) || 0;
+      byZone[z].ftd += Number(p.ftd||0) || 0;
+      byZone[z].mtd += Number(p.currentMonth||p.mtd||0) || 0;
+      byZone[z].lmtd += Number(p.prevMonth||p.lmtd||0) || 0;
+      byZone[z].target += Number(p.target||0) || 0;
+      byZone[z].calls += Number(p.calls||0) || 0;
+      byZone[z].visits += Number(p.visits||0) || 0;
       byZone[z].partners.push(p);
     });
 
@@ -182,7 +182,7 @@
         <table class="data-table" style="min-width:700px">
           <thead><tr><th>#</th><th>Partner</th><th>State</th><th>Owner</th><th>Status</th><th class="num-col">MTD</th><th class="num-col">Target</th><th class="num-col">Ach%</th></tr></thead>
           <tbody>${rows.map((p, i) => {
-            const pa = Number(p.target) > 0 ? (Number(p.mtd) / Number(p.target) * 100).toFixed(1) : '0.0';
+            const pa = Number(p.target||0) > 0 ? (Number(p.currentMonth||p.mtd||0) / Number(p.target||0) * 100).toFixed(1) : '0.0';
             return `<tr>
               <td>${i + 1}</td><td><strong>${safe(p.name)}</strong></td><td>${safe(p.state)}</td>
               <td>${safe(p.ownerName)}</td><td>${statusBadge(p.status)}</td>
@@ -236,8 +236,8 @@
   function renderMasterTable() {
     $('mCount').textContent = `Showing ${masterFiltered.length} of ${allPartners.length} partners`;
     $('masterBody').innerHTML = masterFiltered.map((p, i) => {
-      const ach = Number(p.target) > 0 ? (Number(p.mtd) / Number(p.target) * 100).toFixed(1) : '0.0';
-      const mom = Number(p.lmtd) > 0 ? ((Number(p.mtd) - Number(p.lmtd)) / Number(p.lmtd) * 100).toFixed(1) : '0.0';
+      const ach = Number(p.target||0) > 0 ? (Number(p.currentMonth||p.mtd||0) / Number(p.target||0) * 100).toFixed(1) : '0.0';
+      const mom = Number(p.prevMonth||p.lmtd||0) > 0 ? ((Number(p.currentMonth||p.mtd||0) - Number(p.prevMonth||p.lmtd||0)) / Number(p.prevMonth||p.lmtd||0) * 100).toFixed(1) : '0.0';
       return `<tr>
         <td>${i + 1}</td>
         <td><strong>${safe(p.name)}</strong></td>
@@ -269,11 +269,11 @@
       if (!byAM[name]) byAM[name] = { name, role, zone: p.zone || '', count: 0, active: 0, mtd: 0, lmtd: 0, target: 0, calls: 0, visits: 0 };
       byAM[name].count++;
       if ((p.status || '').toLowerCase() === 'active') byAM[name].active++;
-      byAM[name].mtd += Number(p.mtd) || 0;
-      byAM[name].lmtd += Number(p.lmtd) || 0;
-      byAM[name].target += Number(p.target) || 0;
-      byAM[name].calls += Number(p.calls) || 0;
-      byAM[name].visits += Number(p.visits) || 0;
+      byAM[name].mtd += Number(p.currentMonth||p.mtd||0) || 0;
+      byAM[name].lmtd += Number(p.prevMonth||p.lmtd||0) || 0;
+      byAM[name].target += Number(p.target||0) || 0;
+      byAM[name].calls += Number(p.calls||0) || 0;
+      byAM[name].visits += Number(p.visits||0) || 0;
     });
 
     const rows = Object.values(byAM).sort((a, b) => b.mtd - a.mtd);
@@ -307,8 +307,8 @@
       const key = (p.zone || 'Unknown') + '||' + (p.ownerRole || 'Unknown');
       if (!byZoneRole[key]) byZoneRole[key] = { zone: p.zone || 'Unknown', role: p.ownerRole || 'Unknown', count: 0, mtd: 0, target: 0 };
       byZoneRole[key].count++;
-      byZoneRole[key].mtd += Number(p.mtd) || 0;
-      byZoneRole[key].target += Number(p.target) || 0;
+      byZoneRole[key].mtd += Number(p.currentMonth||p.mtd||0) || 0;
+      byZoneRole[key].target += Number(p.target||0) || 0;
     });
 
     const rows = Object.values(byZoneRole).sort((a, b) => a.zone.localeCompare(b.zone) || b.mtd - a.mtd);
@@ -331,8 +331,8 @@
 
   // ── Call & Visit Tracker ──────────────────────────────────────────
   function renderTracker() {
-    const totalCalls = allPartners.reduce((s, p) => s + (Number(p.calls) || 0), 0);
-    const totalVisits = allPartners.reduce((s, p) => s + (Number(p.visits) || 0), 0);
+    const totalCalls = allPartners.reduce((s, p) => s + (Number(p.calls||0) || 0), 0);
+    const totalVisits = allPartners.reduce((s, p) => s + (Number(p.visits||0) || 0), 0);
     $('trackerGrid').innerHTML = `
       <div class="tracker-card"><div class="tracker-label">Total Calls</div><div class="tracker-val">${fmtN(totalCalls)}</div></div>
       <div class="tracker-card"><div class="tracker-label">Total Visits</div><div class="tracker-val">${fmtN(totalVisits)}</div></div>
@@ -345,8 +345,8 @@
       const name = p.ownerName || 'Unknown';
       if (!byOwner[name]) byOwner[name] = { name, role: p.ownerRole || '', zone: p.zone || '', count: 0, calls: 0, visits: 0 };
       byOwner[name].count++;
-      byOwner[name].calls += Number(p.calls) || 0;
-      byOwner[name].visits += Number(p.visits) || 0;
+      byOwner[name].calls += Number(p.calls||0) || 0;
+      byOwner[name].visits += Number(p.visits||0) || 0;
     });
 
     const rows = Object.values(byOwner).sort((a, b) => b.calls - a.calls);
@@ -368,8 +368,8 @@
     allPartners.forEach(p => {
       const z = p.zone || 'Unknown';
       if (!byZone[z]) byZone[z] = { mtd: 0, target: 0 };
-      byZone[z].mtd += Number(p.mtd) || 0;
-      byZone[z].target += Number(p.target) || 0;
+      byZone[z].mtd += Number(p.currentMonth||p.mtd||0) || 0;
+      byZone[z].target += Number(p.target||0) || 0;
     });
     const zoneLabels = Object.keys(byZone).sort();
     const zoneMtd = zoneLabels.map(z => byZone[z].mtd);
@@ -383,7 +383,7 @@
       if (p.ownerRole !== 'AM') return;
       const n = p.ownerName || 'Unknown';
       if (!byAM[n]) byAM[n] = 0;
-      byAM[n] += Number(p.mtd) || 0;
+      byAM[n] += Number(p.currentMonth||p.mtd||0) || 0;
     });
     const topAMs = Object.entries(byAM).sort((a, b) => b[1] - a[1]).slice(0, 10);
 
